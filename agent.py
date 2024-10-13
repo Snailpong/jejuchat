@@ -94,13 +94,13 @@ index = load_faiss_index(index_path)
 
 
 def generate_response_with_faiss(
-  question,
+  question: str,
   time,
   local_choice,
   max_count=10,
   k=3,
   print_prompt=True,
-):
+) -> str:
   filtered_df = df
 
   # 검색 쿼리 임베딩 생성
@@ -112,70 +112,14 @@ def generate_response_with_faiss(
   # FAISS로 검색된 상위 k개의 데이터프레임 추출
   filtered_df = filtered_df.iloc[indices[0, :]].copy().reset_index(drop=True)
 
-  # 웹페이지의 사이드바에서 선택하는 영업시간, 현지인 맛집 조건 구현
-
-  # 영업시간 옵션
-  # 필터링 조건으로 활용
-
-  # 영업시간 조건을 만족하는 가게들만 필터링
-  if time == "아침":
-    filtered_df = filtered_df[
-      filtered_df["영업시간"].apply(
-        lambda x: isinstance(eval(x), list)
-        and any(hour in eval(x) for hour in range(5, 12))
-      )
-    ].reset_index(drop=True)
-  elif time == "점심":
-    filtered_df = filtered_df[
-      filtered_df["영업시간"].apply(
-        lambda x: isinstance(eval(x), list)
-        and any(hour in eval(x) for hour in range(12, 14))
-      )
-    ].reset_index(drop=True)
-  elif time == "오후":
-    filtered_df = filtered_df[
-      filtered_df["영업시간"].apply(
-        lambda x: isinstance(eval(x), list)
-        and any(hour in eval(x) for hour in range(14, 18))
-      )
-    ].reset_index(drop=True)
-  elif time == "저녁":
-    filtered_df = filtered_df[
-      filtered_df["영업시간"].apply(
-        lambda x: isinstance(eval(x), list)
-        and any(hour in eval(x) for hour in range(18, 23))
-      )
-    ].reset_index(drop=True)
-  elif time == "밤":
-    filtered_df = filtered_df[
-      filtered_df["영업시간"].apply(
-        lambda x: isinstance(eval(x), list)
-        and any(hour in eval(x) for hour in [23, 24, 1, 2, 3, 4])
-      )
-    ].reset_index(drop=True)
-
-  # 필터링 후 가게가 없으면 메시지를 반환
-  if filtered_df.empty:
-    return f"현재 선택하신 시간대({time})에는 영업하는 가게가 없습니다."
-
   filtered_df = filtered_df.reset_index(drop=True).head(k)
-
-  # 현지인 맛집 옵션
-
-  # 프롬프트에 반영하여 활용
-  if local_choice == "제주도민 맛집":
-    local_choice = "제주도민(현지인) 맛집"
-  elif local_choice == "관광객 맛집":
-    local_choice = "현지인 비중이 낮은 관광객 맛집"
 
   # 선택된 결과가 없으면 처리
   if filtered_df.empty:
     return "질문과 일치하는 가게가 없습니다."
 
   # 참고할 정보와 프롬프트 구성
-  reference_info = ""
-  for idx, row in filtered_df.iterrows():
-    reference_info += f"{row['text']}\n"
+  reference_info = "\n".join(filtered_df["text"].to_list())
 
   # 응답을 받아오기 위한 프롬프트 생성
   prompt = f"질문: {question} 특히 {local_choice}을 선호해\n참고할 정보:\n{reference_info}\n응답:"
@@ -188,4 +132,4 @@ def generate_response_with_faiss(
   # 응답 생성
   response = chat.send_message(prompt)
 
-  return response
+  return response.text

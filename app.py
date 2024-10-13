@@ -112,19 +112,6 @@ if st.session_state.messages[-1]["role"] != "assistant":
         time,
         local_choice,
       )
-      placeholder = st.empty()
-      full_response = ""
-
-      # 만약 response가 GenerateContentResponse 객체라면, 문자열로 변환하여 사용합니다.
-      if isinstance(response, str):
-        full_response = response
-      else:
-        full_response = response.text  # response 객체에서 텍스트 부분 추출
-
-      # for item in response:
-      #     full_response += item
-      #     placeholder.markdown(full_response)
-
-      placeholder.markdown(full_response)
-  message = {"role": "assistant", "content": full_response}
+      st.markdown(response)
+  message = {"role": "assistant", "content": response}
   st.session_state.messages.append(message)
