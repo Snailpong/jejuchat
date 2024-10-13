@@ -212,3 +212,4 @@ pip-selfcheck.json
 doc/
 .DS_Store
 /modules
+/data
