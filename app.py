@@ -17,7 +17,7 @@ module_path = "./modules"
 # os.makedirs("/root/.streamlit", exist_ok=True)
 # shutil.copy("secrets.toml", "/root/.streamlit/secrets.toml")
 
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
