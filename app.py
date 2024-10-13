@@ -131,7 +131,12 @@ st.sidebar.button("Clear Chat History", on_click=clear_chat_history)
 # RAG
 
 # 디바이스 설정
-device = "cuda" if torch.cuda.is_available() else "cpu"
+if torch.cuda.is_available():
+  device = "cuda"
+elif torch.backends.mps.is_available():
+  device = "mps"
+else:
+  device = "cpu"
 
 # Hugging Face의 사전 학습된 임베딩 모델과 토크나이저 로드
 model_name = "jhgan/ko-sroberta-multitask"
