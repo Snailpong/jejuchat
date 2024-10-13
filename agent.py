@@ -16,7 +16,7 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 # Gemini 모델 선택
 model = genai.GenerativeModel("gemini-1.5-flash")
-
+chat = model.start_chat()
 # 경로 설정
 data_path = "./data"
 
@@ -186,6 +186,6 @@ def generate_response_with_faiss(
     print("-----------------------------" * 3)
 
   # 응답 생성
-  response = model.generate_content(prompt)
+  response = chat.send_message(prompt)
 
   return response
