@@ -12,6 +12,7 @@ dependencies = [
     "streamlit>=1.39.0",
     "torch>=2.4.1",
     "transformers>=4.45.2",
+    "watchdog>=5.0.3",
 ]
 
 [tool.uv]
