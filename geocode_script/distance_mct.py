@@ -1,18 +1,19 @@
-import pandas as pd
-import random
-import googlemaps
-from geopy.geocoders import Nominatim
-from geopy.distance import geodesic
-from tqdm import tqdm
-import time
 import os
+import random
 import re
+import time
+
+import googlemaps
+import pandas as pd
+from geopy.distance import geodesic
+from geopy.geocoders import Nominatim
+from tqdm import tqdm
 
 # Initialize the Nominatim geolocator
 geolocator = Nominatim(user_agent="South Korea")
 
 # Initialize Google Maps API (replace with your API key)
-from api_key import google_map_api_key
+from utils.api_key import google_map_api_key
 
 gmaps = googlemaps.Client(key=google_map_api_key)
 

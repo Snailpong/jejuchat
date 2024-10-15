@@ -1,10 +1,11 @@
-import requests
-import pandas as pd
 import time
-from tqdm import tqdm
-from geopy.distance import geodesic
 
-from api_key import kakao_rest_api_key
+import pandas as pd
+import requests
+from geopy.distance import geodesic
+from tqdm import tqdm
+
+from utils.api_key import kakao_rest_api_key
 
 
 # Function to get latitude and longitude from Kakao's API
