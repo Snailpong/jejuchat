@@ -53,6 +53,7 @@ def get_reply_from_question(question_dict):
     # Extract the SQL query from the parsed JSON
     if parsed_json["result"] == "error":
         from prompts import cannot_generate_sql_prompt_format
+        print(parsed_json)
 
         # Final prompt for error, including the question and reason why it's not valid
         final_prompt =cannot_generate_sql_prompt_format.format(question=question, error_message=parsed_json["error_message"])
@@ -75,14 +76,20 @@ def get_reply_from_question(question_dict):
     # YM 컬럼을 제외하고 MCT_NM, OP_YMD 기준으로 중복 제거
     result_df = result_df.drop_duplicates(subset=['MCT_NM', 'OP_YMD'], keep='first')
 
-    # Print the result
-    print(result_df)
-
     # Check if there are more than 10 rows
     truncate_flag = False
+    len_result_df = len(result_df)
     if len(result_df) > 10:
         truncate_flag = True
         result_df = result_df.sample(10, random_state=42)  # Randomly sample 10 rows
+
+    # Print the result
+    if result_df.empty:
+        print("조회된 결과가 없습니다.")
+    elif len(result_df) == 1:
+        print(result_df.to_json(orient="records", force_ascii=False))
+    else:
+        print(len_result_df,"개 조회됨: ",", ".join(result_df['MCT_NM']))
 
 
     result_json = result_df.to_json(orient="records", force_ascii=False)
@@ -120,7 +127,8 @@ def manual_question():
     # get_reply_from_question({"question": "오늘 여는 흑돼지집 추천해줘", "query": "-"})
     # exit()
 
-    for i in range(6):
+    # for i in range(6):
+    for i in range(7, 10):
         print("Question", i + 1)
         get_reply_from_question(valid_question_list[i])
         print()
