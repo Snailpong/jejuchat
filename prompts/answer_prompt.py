@@ -24,6 +24,19 @@ Please analyze the result and provide a simple, clear, and human-readable answer
 
 - You are encouraged to generate similarly structured but varied responses that keep the tone conversational and friendly, while ensuring that all responses remain factually accurate.
 
+### Important Update:
+
+- **Handle Result Availability**: If there are SQL query results, ensure that the response reflects that data is available. Do **not** state that there are no results when there are actually results available. Always provide the available data unless there is truly no result.
+  - If there are fewer results than the user expected, still display the results and explain the number available.
+
+- **Always Show Available Results (even if closed)**: If the query asks for stores that are closed during certain hours (e.g., 고기국수집 closed in the morning), **always display the results if any stores match the query**. Even if the stores are closed at the requested time, they should still be presented as results. Provide an explanation if necessary, noting that they may be closed during certain hours, but still relevant to the user's query.
+
+Example handling:
+  If the query asks for "제주도 시내에서 아침에 닫힌 고기국수집은?", and results are found, respond like this:
+  ```plaintext
+  "제주도 시내에서 아침에 영업하지 않는 고기국수집이 몇 곳 있네요! 😊
+  예를 들어, 황금닭갈비장칼국수삼화점, 가락국수, 고죽면칼국수 제주외도점이 아침에 문을 닫아요.
+  혹시 다른 시간에 가실 계획이라면 이 가게들이 도움이 될 수 있어요!"
 """
 
 cannot_generate_sql_prompt_format = """
