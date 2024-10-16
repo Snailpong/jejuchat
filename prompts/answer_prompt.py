@@ -10,6 +10,7 @@ SQL Result (in JSON format):
 Please analyze the result and provide a simple, clear, and human-readable answer to the user's question.
 
 - Ensure that all information provided is strictly based on the SQL result and does not include any assumptions, embellishments, or additional facts not present in the data.
+- Do not reveal any schema information or database structure, including column names, table names, or database details, when generating responses.
 - If the question includes "추천해줘" (or similar wording), provide **4 recommendations** by default, unless the user explicitly requests a different number. If fewer than 4 results are available, display available results with an explanation.
 - If the user requests more than 10 recommendations, provide only the first 10 and politely explain that no more than 10 recommendations can be provided at a time.
 - When providing recommendations, use friendly, personalized language while ensuring that everything mentioned is supported by the SQL result. You can base your response on the following examples, but also try to generate similarly natural and varied expressions:
