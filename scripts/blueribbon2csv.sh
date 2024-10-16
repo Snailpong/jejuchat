@@ -1,4 +1,9 @@
 #!sh
+# 1. go www.bluer.co.kr
+# 2. select jeju from search by region
+# 3. open 01. jeju-si
+# 4. find request url from developer tool
+# 5. repeat for other regions
 
 function parse2csv() {
   jq --raw-output '._embedded.restaurants.[] | [.headerInfo.nameKR, .gps.latitude, .gps.longitude, "\(.juso.roadAddrPart1) \(.juso.roadAddrPart2)"] | @csv'
@@ -19,6 +24,6 @@ curl -s 'https://www.bluer.co.kr/api/v1/restaurants?page=[0-1]&size=30&query=&fo
 curl -s 'https://www.bluer.co.kr/api/v1/restaurants?page=[0-1]&size=30&query=&foodType=&foodTypeDetail=&feature=&location=&locationDetail=&area=&areaDetail=&priceRange=&ribbonType=&recommended=false&listType=list&isSearchName=false&tabMode=single&searchMode=map&zone1=%EC%A0%9C%EC%A3%BC&zone2=11.%20%EC%84%9C%EA%B7%80%ED%8F%AC%EC%8B%9C%28%EB%8C%80%EC%A0%95%2F%EC%95%88%EB%8D%95%29&zone2Lat=33.2229604971036&zone2Lng=126.27450806694' | parse2csv >> $TMPFILE
 
 
-echo 'NAME, LATITUDE, LONGITUDE, ADDRESS' > blueribbon.csv
+echo 'NAME,LATITUDE,LONGITUDE,ADDRESS' > blueribbon.csv
 sort $TMPFILE | uniq >> blueribbon.csv # remove duplicate
 echo './blueribbon.csv'
