@@ -5,7 +5,7 @@ import google.generativeai as genai
 import pandas as pd
 import pandasql as ps
 
-from prompts import (result_prompt_format, single_question_prompt_format,
+from prompts import (result_prompt_format, single_question_input_format, make_single_question_json,
                      sql_generation_prompt)
 from questions import ex_question_list, valid_question_list
 from utils.api_key import google_ai_studio_api_key
@@ -15,6 +15,7 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 
 # CSV 파일 로드
 JEJU_MCT_DATA = pd.read_csv("data/JEJU_PROCESSED.csv", encoding="cp949")
+PLACE = pd.read_csv("data/JEJU_PLACES_MERGED.csv", encoding="cp949")
 
 
 def count_prompt_token():
@@ -23,10 +24,18 @@ def count_prompt_token():
 
 
 def make_single_question_prompt(single_question):
+    single_question_input = single_question_input_format.format(
+            natural_language_question=single_question,
+            use_current_location_time="FALSE",
+            weekday_hour="NONE",
+            previous_conversation_summary="NONE"
+            )
+    single_question_prompt = make_single_question_json(single_question_input)
+    
     return (
         sql_generation_prompt
         + "\n"
-        + single_question_prompt_format.format(single_question)
+        + single_question_prompt
     )
 
 def generate_content(prompt):
@@ -68,7 +77,8 @@ def get_reply_from_question(question_dict):
 
     sql_query = parsed_json["query"]
 
-    print("생성된 쿼리:\t", sql_query)
+    # print("생성된 쿼리:\t", sql_query)
+    print(parsed_json)
 
     # Execute the SQL query on the DataFrame
     result_df = ps.sqldf(sql_query, globals())
