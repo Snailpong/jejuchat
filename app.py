@@ -1,4 +1,7 @@
+from datetime import datetime
+
 import streamlit as st
+from streamlit_geolocation import streamlit_geolocation
 
 from agent import generate_response_with_faiss
 
@@ -52,7 +55,16 @@ with st.sidebar:
 
   local_choice = st.radio("", ("제주도민 맛집", "관광객 맛집"))
 
-  st.write("")
+  # Group location-related inputs into an expandable box
+  with st.expander("Location Settings", expanded=True):
+    use_current_location = st.checkbox("현재 정보 활용")
+    location = streamlit_geolocation()
+    latitude = st.number_input("위도", format="%.6f", value=location["latitude"])
+    longitude = st.number_input("경도", format="%.6f", value=location["longitude"])
+
+    st.time_input("현재 시간", value=datetime.now())
+
+  devmode = st.checkbox("dev 모드 (SQL쿼리 출력)")
 
 st.title("혼저 옵서예!👋")
 st.subheader("군맛난 제주 밥집🧑‍🍳 추천해드릴게예")
@@ -106,11 +118,13 @@ if prompt := st.chat_input():  # (disabled=not replicate_api):
 if st.session_state.messages[-1]["role"] != "assistant":
   with st.chat_message("assistant"):
     with st.spinner("Thinking..."):
-      # response = generate_llama2_response(prompt)
+      # Pass latitude and longitude to the response generator
       response = generate_response_with_faiss(
         prompt,
         time,
         local_choice,
+        latitude,
+        longitude,
       )
       st.markdown(response)
   message = {"role": "assistant", "content": response}
