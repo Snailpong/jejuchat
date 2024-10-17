@@ -5,8 +5,8 @@ import google.generativeai as genai
 import pandas as pd
 import pandasql as ps
 
-from prompts import (result_prompt_format, single_question_input_format, make_single_question_json,
-                     sql_generation_prompt)
+from prompts import (make_single_question_json, make_single_result_prompt,
+                     single_question_input_format, sql_generation_prompt)
 from questions import ex_question_list, valid_question_list
 from utils.api_key import google_ai_studio_api_key
 
@@ -17,6 +17,16 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 JEJU_MCT_DATA = pd.read_csv("data/JEJU_PROCESSED.csv", encoding="cp949")
 PLACE = pd.read_csv("data/JEJU_PLACES_MERGED.csv", encoding="cp949")
 
+previous_summary = []
+
+
+def parse_json_from_str(json_str):
+    # Extract the content between curly braces
+    match = re.findall(r"\{.*?\}", json_str, re.DOTALL)[0]
+
+    # Parse the JSON content
+    parsed_json = json.loads(match)
+    return parsed_json
 
 def count_prompt_token():
     response = model.count_tokens(sql_generation_prompt)
@@ -41,6 +51,22 @@ def make_single_question_prompt(single_question):
 def generate_content(prompt):
     return model.generate_content(prompt, safety_settings="BLOCK_ONLY_HIGH")
 
+# Function to calculate distance between two lat/lon points using the Haversine formula
+def calculate_distance(lat1, lon1, lat2, lon2):
+    from geopy.distance import distance
+    return distance((lat1, lon1), (lat2, lon2)).m
+
+# Function to clean PLACE_NAME
+def clean_place_name(place_name):
+    # Remove content inside parentheses (including the parentheses)
+    if isinstance(place_name, str):  # Check if the value is a string
+        place_name = re.sub(r"\(.*?\)", "", place_name)
+        
+        # Remove whitespace, commas, and periods
+        place_name = re.sub(r"[,\.\s]+", "", place_name)
+    
+    return place_name
+
 
 def get_reply_from_question(question_dict):
     question = question_dict["question"]
@@ -52,12 +78,7 @@ def get_reply_from_question(question_dict):
     single_question_prompt = make_single_question_prompt(question)
 
     response = generate_content(single_question_prompt)
-
-    # Extract the content between curly braces
-    match = re.findall(r"\{.*?\}", response.text, re.DOTALL)[0]
-
-    # Parse the JSON content
-    parsed_json = json.loads(match)
+    parsed_json = parse_json_from_str(response.text)
 
     # Extract the SQL query from the parsed JSON
     if parsed_json["result"] == "error":
@@ -84,38 +105,85 @@ def get_reply_from_question(question_dict):
     result_df = ps.sqldf(sql_query, globals())
 
     # YM 컬럼을 제외하고 MCT_NM, OP_YMD 기준으로 중복 제거
-    result_df = result_df.drop_duplicates(subset=['MCT_NM', 'OP_YMD'], keep='first')
+    try:
+        result_df = result_df.drop_duplicates(subset=['MCT_NM', 'OP_YMD'], keep='first')
+    except:
+        pass
+
+    # Print the result
+    len_result_df = len(result_df)
+
+    if result_df.empty:
+        print("조회된 결과가 없습니다.")
+    else:
+        print(len_result_df,"개 조회됨: ",", ".join(result_df['MCT_NM'][:10]))
+
+    # If there is a target_place specified, calculate distance from target_place
+    if parsed_json["target_place"] != "NONE":
+        target_place = clean_place_name(parsed_json["target_place"])
+        print("Try to find target place:", target_place)
+        
+        # Fetch the latitude and longitude of the target_place from the PLACE table
+        place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME = '{target_place}' LIMIT 1;"
+        place_df = ps.sqldf(place_query, globals())
+        
+        if not place_df.empty:
+            print("Exact place found.")
+        if place_df.empty:
+            print("Exact place not found. Try to find the most similar place containing the target_place.")
+            # If the exact place is not found, try to find the most similar place containing the target_place
+            place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME LIKE '%{target_place}%' LIMIT 1;"
+            place_df = ps.sqldf(place_query, globals())
+
+            if not place_df.empty:
+                print("Similar place found.")
+        
+        if not place_df.empty:
+            place_lat = place_df.iloc[0]['LATITUDE']
+            place_lon = place_df.iloc[0]['LONGITUDE']
+
+            # Calculate the distance for each row in the result_df
+            result_df['PLACE_DISTANCE'] = result_df.apply(lambda row: calculate_distance(place_lat, place_lon, row['LATITUDE'], row['LONGITUDE']), axis=1)
+            # Remove rows where PLACE_DISTANCE is 5000 or more
+            result_df = result_df[result_df['PLACE_DISTANCE'] < 5000]
+
+            # Sort the result by distance
+            result_df = result_df.sort_values(by='PLACE_DISTANCE')
+
+            # Keep only the 10 closest places
+            result_df = result_df.head(10)
+            len_result_df = len(result_df)
+        else:
+            print(f"Target place '{target_place}' not found in the PLACE table.")
 
     # Check if there are more than 10 rows
     truncate_flag = False
-    len_result_df = len(result_df)
+    
     if len(result_df) > 10:
         truncate_flag = True
         result_df = result_df.sample(10, random_state=42)  # Randomly sample 10 rows
-
-    # Print the result
-    if result_df.empty:
-        print("조회된 결과가 없습니다.")
-    elif len(result_df) == 1:
-        print(result_df.to_json(orient="records", force_ascii=False))
-    else:
-        print(len_result_df,"개 조회됨: ",", ".join(result_df['MCT_NM']))
 
 
     result_json = result_df.to_json(orient="records", force_ascii=False)
     # final_prompt = result_prompt_format.format(question, result_json)
 
-    if truncate_flag:
-        final_prompt = result_prompt_format.format(question=question, result_json=result_json) + \
-                       "\nNote: The result contains more than 10 entries. Only 10 have been shown randomly."
+    # Convert previous_summary list to a string with bullet points
+    if len(previous_summary) == 0:
+        previous_summary_str = "NONE"
     else:
-        final_prompt = result_prompt_format.format(question=question, result_json=result_json) 
+        previous_summary_str = "\n".join([f"- {item}" for item in previous_summary[:-1]] + ["- Latest"])
 
+    final_prompt = make_single_result_prompt(question, result_json, previous_summary_str)
+
+    if truncate_flag:
+        final_prompt = final_prompt + "\nNote: The result contains more than 10 entries. Only 10 have been shown randomly."
     # 모델을 통해 답을 생성
     response = generate_content(final_prompt)
+    parse_json = parse_json_from_str(response.text)
 
     # Print the response from the model
-    print("대답:", response.text)
+    print("대답:", parse_json["answer"])
+    print("요약:", parse_json["summary"])
 
 def manual_question():
     # single_question = "제주시 연동에 있는 분식 전문점 중 이용금액이 상위 25%에 속하는 곳 중 현지인 비중이 제일 낮은 곳은?"
