@@ -5,10 +5,13 @@ import google.generativeai as genai
 import pandas as pd
 import pandasql as ps
 
-from prompts import (make_single_question_json, make_single_result_prompt,
-                     single_question_input_format, sql_generation_prompt)
+from prompts import (make_cannot_generate_sql_prompt,
+                     make_single_question_prompt, make_single_result_prompt)
 from questions import ex_question_list, valid_question_list
 from utils.api_key import google_ai_studio_api_key
+from utils.geo_utils import calculate_distance
+from utils.string_utils import (clean_place_name, count_prompt_token,
+                                parse_json_from_str)
 
 genai.configure(api_key=google_ai_studio_api_key)
 model = genai.GenerativeModel("gemini-1.5-flash")
@@ -20,52 +23,8 @@ PLACE = pd.read_csv("data/JEJU_PLACES_MERGED.csv", encoding="cp949")
 previous_summary = []
 
 
-def parse_json_from_str(json_str):
-    # Extract the content between curly braces
-    match = re.findall(r"\{.*?\}", json_str, re.DOTALL)[0]
-
-    # Parse the JSON content
-    parsed_json = json.loads(match)
-    return parsed_json
-
-def count_prompt_token():
-    response = model.count_tokens(sql_generation_prompt)
-    print(f"Prompt Token Count: {response.total_tokens}")
-
-
-def make_single_question_prompt(single_question):
-    single_question_input = single_question_input_format.format(
-            natural_language_question=single_question,
-            use_current_location_time="FALSE",
-            weekday_hour="NONE",
-            previous_conversation_summary="NONE"
-            )
-    single_question_prompt = make_single_question_json(single_question_input)
-    
-    return (
-        sql_generation_prompt
-        + "\n"
-        + single_question_prompt
-    )
-
 def generate_content(prompt):
     return model.generate_content(prompt, safety_settings="BLOCK_ONLY_HIGH")
-
-# Function to calculate distance between two lat/lon points using the Haversine formula
-def calculate_distance(lat1, lon1, lat2, lon2):
-    from geopy.distance import distance
-    return distance((lat1, lon1), (lat2, lon2)).m
-
-# Function to clean PLACE_NAME
-def clean_place_name(place_name):
-    # Remove content inside parentheses (including the parentheses)
-    if isinstance(place_name, str):  # Check if the value is a string
-        place_name = re.sub(r"\(.*?\)", "", place_name)
-        
-        # Remove whitespace, commas, and periods
-        place_name = re.sub(r"[,\.\s]+", "", place_name)
-    
-    return place_name
 
 
 def get_reply_from_question(question_dict):
@@ -82,11 +41,10 @@ def get_reply_from_question(question_dict):
 
     # Extract the SQL query from the parsed JSON
     if parsed_json["result"] == "error":
-        from prompts import cannot_generate_sql_prompt_format
         print(parsed_json)
 
         # Final prompt for error, including the question and reason why it's not valid
-        final_prompt =cannot_generate_sql_prompt_format.format(question=question, error_message=parsed_json["error_message"])
+        final_prompt = make_cannot_generate_sql_prompt(question, parsed_json["error_message"])
         
         # 모델을 통해 답을 생성
         response = model.generate_content(final_prompt)
@@ -229,7 +187,8 @@ def terminal_question():
 
 
 if __name__ == "__main__":
-    count_prompt_token()
+    from prompts.sql_prompt import sql_generation_prompt
+    count_prompt_token(model, sql_generation_prompt)
     # manual_question()
     terminal_question()
 

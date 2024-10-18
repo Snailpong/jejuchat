@@ -1,7 +1,3 @@
-def make_single_result_prompt(question, result_json, previous_summary):
-    result_prompt = result_prompt_format.format(question=question, result_json=result_json, previous_summary=previous_summary)
-    return result_prompt + "\n" + result_explanation_prompt
-
 result_prompt_format = """
 You are an AI model that answers user questions based on structured data. 
 Below is a question from the user, the SQL query result that has been executed, and summaries from previous interactions. You must generate an answer that incorporates the current SQL result while maintaining continuity based on the previous conversation, **but only mention previous summaries if they are relevant to the current question**.
@@ -96,3 +92,10 @@ Below is the information you need:
   "summary": "제주도 날씨에 대해 물어보셨지만, 시스템은 날씨 정보를 처리할 수 없습니다."
 }
 """
+
+def make_single_result_prompt(question, result_json, previous_summary):
+    result_prompt = result_prompt_format.format(question=question, result_json=result_json, previous_summary=previous_summary)
+    return result_prompt + "\n" + result_explanation_prompt
+
+def make_cannot_generate_sql_prompt(question, error_message):
+    return cannot_generate_sql_prompt_format.format(question=question, error_message=error_message)

@@ -1,5 +1,5 @@
-from .answer_prompt import (cannot_generate_sql_prompt_format,
+from .answer_prompt import (make_cannot_generate_sql_prompt,
                             make_single_result_prompt)
-from .question_prompt import (make_single_question_json,
+from .question_prompt import (make_single_question_prompt,
                               single_question_input_format)
 from .sql_prompt import sql_generation_prompt
