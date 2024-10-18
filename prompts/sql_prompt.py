@@ -168,6 +168,15 @@ Use ORDER BY to rank the results where applicable, such as "highest percentage" 
     - **DIST_COAST** is used exclusively for measuring proximity to the sea or coastline.
     - It does not apply to restaurants or tourist destinations. When referencing proximity to restaurants or tourist spots, other location-based features should be used (e.g., latitude, longitude, or other address-based methods).
 
+- BLUE_RIBBON: BOOLEAN, indicating whether the restaurant is listed in the Blue Ribbon Guide. 
+  - TRUE: The restaurant is featured in the Blue Ribbon Guide.
+  - FALSE: The restaurant is not listed in the guide.
+  - Note: There is no information about the specific number of ribbons (1, 2, or 3) awarded to the restaurant, but being listed means it meets the high standards of the guide
+
+- PARK_NAME_ADDR: STRING, representing the nearest parking lot's name and address in the format "Name(Address)" for each store.
+  - If a parking lot is found within 500 meters, the **PARK_NAME_ADDR** will be filled with the nearest parking lot's name and address in the format "Name(Address)".
+  - If no parking lot is found within 500 meters, the **PARK_NAME_ADDR** will be set to **'NONE'**.
+
 ### JSON Format for Input and Output:
 - Input (in JSON format): The input provided to the system will be in JSON format, containing four key pieces of information:
   - `natural_language_question`: The user's question in natural language.
