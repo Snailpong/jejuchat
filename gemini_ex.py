@@ -6,10 +6,12 @@ import pandas as pd
 import pandasql as ps
 
 from prompts import (make_cannot_generate_sql_prompt,
+                     make_context_analysis_prompt_question,
                      make_single_question_prompt, make_single_result_prompt)
 from questions import ex_question_list, valid_question_list
 from utils.api_key import google_ai_studio_api_key
 from utils.geo_utils import calculate_distance
+from utils.inference_utils import inference
 from utils.string_utils import (clean_place_name, count_prompt_token,
                                 parse_json_from_str)
 
@@ -34,30 +36,44 @@ def get_reply_from_question(question_dict):
     print("질문:\t", question)
     print("챗지 쿼리:\t", query)
 
-    single_question_prompt = make_single_question_prompt(question)
+   
+    ca_prompt_question = make_context_analysis_prompt_question(question)
+    ca_result = inference(ca_prompt_question, model)
+    print(ca_result)
 
-    response = generate_content(single_question_prompt)
-    parsed_json = parse_json_from_str(response.text)
-
-    # Extract the SQL query from the parsed JSON
-    if parsed_json["result"] == "error":
-        print(parsed_json)
-
+    if ca_result["result"] != "ok":
         # Final prompt for error, including the question and reason why it's not valid
-        final_prompt = make_cannot_generate_sql_prompt(question, parsed_json["error_message"])
+        final_prompt = make_cannot_generate_sql_prompt(question, ca_result["error_message"])
         
         # 모델을 통해 답을 생성
-        response = model.generate_content(final_prompt)
+        final_result = inference(final_prompt, model)
 
-        # Print the response from the model
-        print("대답:", response.text)
+        print("대답:", final_result)
+        return
+    
+    processed_question = ca_result["processed_question"]
+    target_place = ca_result["target_place"]
+
+    single_question_prompt = make_single_question_prompt(processed_question)
+
+    query_result = inference(single_question_prompt, model)
+    print(query_result)
+
+    # Extract the SQL query from the parsed JSON
+    if query_result["result"] != "ok":
+        # Final prompt for error, including the question and reason why it's not valid
+        final_prompt = make_cannot_generate_sql_prompt(question, query_result["error_message"])
+        
+        # 모델을 통해 답을 생성
+        final_result = inference(final_prompt, model)
+
+        print("대답:", final_result)
         return
 
-
-    sql_query = parsed_json["query"]
+    sql_query = query_result["query"]
 
     # print("생성된 쿼리:\t", sql_query)
-    print(parsed_json)
+   
 
     # Execute the SQL query on the DataFrame
     result_df = ps.sqldf(sql_query, globals())
@@ -77,8 +93,8 @@ def get_reply_from_question(question_dict):
         print(len_result_df,"개 조회됨: ",", ".join(result_df['MCT_NM'][:10]))
 
     # If there is a target_place specified, calculate distance from target_place
-    if parsed_json["target_place"] != "NONE":
-        target_place = clean_place_name(parsed_json["target_place"])
+    if target_place != "NONE":
+        target_place = clean_place_name(target_place)
         print("Try to find target place:", target_place)
         
         # Fetch the latitude and longitude of the target_place from the PLACE table
