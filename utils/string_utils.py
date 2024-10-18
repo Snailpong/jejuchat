@@ -12,7 +12,7 @@ def parse_json_from_str(json_str):
 
 def count_prompt_token(model, prompt):
     response = model.count_tokens(prompt)
-    print(f"Prompt Token Count: {response.total_tokens}")
+    return response.total_tokens
 
 def clean_place_name(place_name):
     import re
