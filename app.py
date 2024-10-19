@@ -144,7 +144,14 @@ if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             # Pass latitude and longitude to the response generator
-            response = "Nothing"
+            response = agent(
+                {
+                    "use_current_location_time": use_current_location,
+                    "user_question": prompt,
+                    "weekday": selected_weekday,
+                    "hour": user_time.hour,
+                }
+            )
             st.markdown(response)
     message = {"role": "assistant", "content": response}
     st.session_state.messages.append(message)
