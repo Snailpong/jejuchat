@@ -86,7 +86,7 @@ class Agent:
             result_df = result_df.drop_duplicates(
                 subset=["MCT_NM", "OP_YMD"], keep="first"
             )
-        except:
+        except Exception:
             pass
 
         # Print the result
