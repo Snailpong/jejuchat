@@ -3,7 +3,11 @@ from datetime import datetime
 import streamlit as st
 from streamlit_geolocation import streamlit_geolocation
 
-from agent import generate_response_with_faiss
+from agent import Agent
+
+if "agent" not in st.session_state:
+    st.session_state.agent = Agent()
+agent = st.session_state.agent
 
 # Streamlit App UI
 
@@ -62,7 +66,28 @@ with st.sidebar:
         latitude = st.number_input("위도", format="%.6f", value=location["latitude"])
         longitude = st.number_input("경도", format="%.6f", value=location["longitude"])
 
-        st.time_input("현재 시간", value=datetime.now())
+        user_time = st.time_input("현재 시간", value=datetime.now())
+        weekdays = [
+            "월요일",
+            "화요일",
+            "수요일",
+            "목요일",
+            "금요일",
+            "토요일",
+            "일요일",
+        ]
+        selected_weekday = st.selectbox(
+            "요일 선택", weekdays, index=datetime.now().weekday()
+        )
+        selected_weekday = {
+            "월요일": "Monday",
+            "화요일": "Tuesday",
+            "수요일": "Wednesday",
+            "목요일": "Thursday",
+            "금요일": "Friday",
+            "토요일": "Saturday",
+            "일요일": "Sunday",
+        }[selected_weekday]
 
     devmode = st.checkbox("dev 모드 (SQL쿼리 출력)")
 
@@ -119,12 +144,13 @@ if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             # Pass latitude and longitude to the response generator
-            response = generate_response_with_faiss(
-                prompt,
-                time,
-                local_choice,
-                latitude,
-                longitude,
+            response = agent(
+                {
+                    "use_current_location_time": use_current_location,
+                    "user_question": prompt,
+                    "weekday": selected_weekday,
+                    "hour": user_time.hour,
+                }
             )
             st.markdown(response)
     message = {"role": "assistant", "content": response}
