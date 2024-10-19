@@ -85,7 +85,7 @@ context_analysis_prompt = """
       - `use_current_location_time`: FALSE
     - Output:
       - `result`: error
-      - `error_message`: Time-related information requires permission to access current location or time data. Please enable access.
+      - `error_message`: Current time-related information requires permission to access current location or time data. Please enable access.
 
 
 ### Detailed Logic for Shuffle:
@@ -188,7 +188,7 @@ context_analysis_prompt = """
   Output:
   {
     "result": "error",
-    "error_message": "Time-related information requires permission to access current location or time data. Please enable access."
+    "error_message": "Current time-related information requires permission to access current location or time data. Please enable access."
   }
 
 - Example 5 (Error Case):
