@@ -2,6 +2,8 @@ import os
 import re
 
 import googlemaps
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from geopy.distance import geodesic
 from geopy.geocoders import Nominatim
@@ -10,7 +12,7 @@ from geopy.geocoders import Nominatim
 geolocator = Nominatim(user_agent="South Korea")
 
 # Initialize Google Maps API (replace with your API key)
-from utils.api_key import google_map_api_key
+from utils.api_key import google_map_api_key  # noqa: E402
 
 gmaps = googlemaps.Client(key=google_map_api_key)
 
@@ -131,9 +133,6 @@ while len(sampled_df) < target_samples:
 
 # Print the first few results for verification
 print(sampled_df.head())
-
-import matplotlib.pyplot as plt
-import numpy as np
 
 # Plot the distances on a log scale but change the x-axis ticks to show original distances
 plt.figure(figsize=(10, 6))
