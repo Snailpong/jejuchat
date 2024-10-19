@@ -66,19 +66,28 @@ with st.sidebar:
         latitude = st.number_input("위도", format="%.6f", value=location["latitude"])
         longitude = st.number_input("경도", format="%.6f", value=location["longitude"])
 
-        st.time_input("현재 시간", value=datetime.now())
+        user_time = st.time_input("현재 시간", value=datetime.now())
         weekdays = [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
+            "월요일",
+            "화요일",
+            "수요일",
+            "목요일",
+            "금요일",
+            "토요일",
+            "일요일",
         ]
         selected_weekday = st.selectbox(
             "요일 선택", weekdays, index=datetime.now().weekday()
         )
+        selected_weekday = {
+            "월요일": "Monday",
+            "화요일": "Tuesday",
+            "수요일": "Wednesday",
+            "목요일": "Thursday",
+            "금요일": "Friday",
+            "토요일": "Saturday",
+            "일요일": "Sunday",
+        }[selected_weekday]
 
     devmode = st.checkbox("dev 모드 (SQL쿼리 출력)")
 
