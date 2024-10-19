@@ -3,8 +3,6 @@ from datetime import datetime
 import streamlit as st
 from streamlit_geolocation import streamlit_geolocation
 
-from agent import generate_response_with_faiss
-
 # Streamlit App UI
 
 st.set_page_config(page_title="🍊참신한 제주 맛집!")
@@ -131,13 +129,7 @@ if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             # Pass latitude and longitude to the response generator
-            response = generate_response_with_faiss(
-                prompt,
-                time,
-                local_choice,
-                latitude,
-                longitude,
-            )
+            response = "Nothing"
             st.markdown(response)
     message = {"role": "assistant", "content": response}
     st.session_state.messages.append(message)
