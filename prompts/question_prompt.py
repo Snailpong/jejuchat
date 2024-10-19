@@ -9,7 +9,7 @@ single_question_input_format = """
 def make_single_question_json(single_question_input):
     return (
         """Single Question:
-Input: 
+Input:
 {"""
         + single_question_input
         + """

@@ -82,7 +82,7 @@ def get_reply_from_question(question_dict):
     # YM 컬럼을 제외하고 MCT_NM, OP_YMD 기준으로 중복 제거
     try:
         result_df = result_df.drop_duplicates(subset=["MCT_NM", "OP_YMD"], keep="first")
-    except:
+    except Exception:
         pass
 
     # Print the result

@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from geopy.distance import geodesic
@@ -51,8 +52,6 @@ print(
         ["Latitude_df1", "Longitude_df1", "Latitude_df2", "Longitude_df2", "distance"]
     ]
 )
-
-import matplotlib.pyplot as plt
 
 # Plot the distances on a log scale but change the x-axis ticks to show original distances
 plt.figure(figsize=(10, 6))
