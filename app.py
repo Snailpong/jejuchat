@@ -3,6 +3,12 @@ from datetime import datetime
 import streamlit as st
 from streamlit_geolocation import streamlit_geolocation
 
+from agent import Agent
+
+if "agent" not in st.session_state:
+    st.session_state.agent = Agent()
+agent = st.session_state.agent
+
 # Streamlit App UI
 
 st.set_page_config(page_title="🍊참신한 제주 맛집!")
@@ -62,13 +68,13 @@ with st.sidebar:
 
         st.time_input("현재 시간", value=datetime.now())
         weekdays = [
-            "월요일",
-            "화요일",
-            "수요일",
-            "목요일",
-            "금요일",
-            "토요일",
-            "일요일",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
         ]
         selected_weekday = st.selectbox(
             "요일 선택", weekdays, index=datetime.now().weekday()
