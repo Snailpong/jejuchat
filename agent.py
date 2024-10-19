@@ -30,66 +30,31 @@ class Agent:
         if debug:
             print("질문:\t", user_question)
 
-        ca_prompt_question = make_context_analysis_prompt_question(**input_dict)
-        ca_result = inference(ca_prompt_question, self.model)
+        ca_result = self.analyze_context(input_dict)
 
         print(use_current_location_time, ca_result["target_place"])
 
         if (not use_current_location_time) and ca_result["target_place"] != "NONE":
-            ca_result["result"] = "error"
-            ca_result["error_message"] = (
-                "Current location-related information requires permission to access current location or time data. Please enable access."
+            return self.handle_error(
+                user_question,
+                "Current location-related information requires permission to access current location or time data. Please enable access.",
             )
 
         if ca_result["result"] != "ok":
-            # Final prompt for error, including the question and reason why it's not valid
-            final_prompt = make_cannot_generate_sql_prompt(
-                user_question, ca_result["error_message"]
-            )
-
-            # 모델을 통해 답을 생성
-            final_result = inference(final_prompt, self.model)
-
-            print("대답:", final_result)
-            return
+            return self.handle_error(user_question, ca_result["error_message"])
 
         processed_question = ca_result["processed_question"]
-        target_place = ca_result["target_place"]
 
         single_question_prompt = make_single_question_prompt(processed_question)
 
         query_result = inference(single_question_prompt, self.model)
         print(query_result)
 
-        # Extract the SQL query from the parsed JSON
         if query_result["result"] != "ok":
-            # Final prompt for error, including the question and reason why it's not valid
-            final_prompt = make_cannot_generate_sql_prompt(
-                user_question, query_result["error_message"]
-            )
+            return self.handle_error(user_question, query_result["error_message"])
 
-            # 모델을 통해 답을 생성
-            final_result = inference(final_prompt, self.model)
-
-            print("대답:", final_result)
-            return
-
-        sql_query = query_result["query"]
-
-        # print("생성된 쿼리:\t", sql_query)
-
-        # Execute the SQL query on the DataFrame
-        result_df = ps.sqldf(sql_query, globals())
-
-        # YM 컬럼을 제외하고 MCT_NM, OP_YMD 기준으로 중복 제거
-        try:
-            result_df = result_df.drop_duplicates(
-                subset=["MCT_NM", "OP_YMD"], keep="first"
-            )
-        except Exception:
-            pass
-
-        # Print the result
+        result_df = self.execute_query(query_result["query"])
+        result_df = self.filter_duplicates(result_df)
         len_result_df = len(result_df)
 
         if result_df.empty:
@@ -98,61 +63,105 @@ class Agent:
             print(len_result_df, "개 조회됨: ", ", ".join(result_df["MCT_NM"][:10]))
 
         # If there is a target_place specified, calculate distance from target_place
-        if target_place != "NONE":
-            target_place = clean_place_name(target_place)
-            print("Try to find target place:", target_place)
-
-            # Fetch the latitude and longitude of the target_place from the PLACE table
-            place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME = '{target_place}' LIMIT 1;"
-            place_df = ps.sqldf(place_query, globals())
-
-            if not place_df.empty:
-                print("Exact place found.")
-            if place_df.empty:
-                print(
-                    "Exact place not found. Try to find the most similar place containing the target_place."
-                )
-                # If the exact place is not found, try to find the most similar place containing the target_place
-                place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME LIKE '%{target_place}%' LIMIT 1;"
-                place_df = ps.sqldf(place_query, globals())
-
-                if not place_df.empty:
-                    print("Similar place found.")
-
-            if not place_df.empty:
-                place_lat = place_df.iloc[0]["LATITUDE"]
-                place_lon = place_df.iloc[0]["LONGITUDE"]
-
-                # Calculate the distance for each row in the result_df
-                result_df["PLACE_DISTANCE"] = result_df.apply(
-                    lambda row: calculate_distance(
-                        place_lat, place_lon, row["LATITUDE"], row["LONGITUDE"]
-                    ),
-                    axis=1,
-                )
-                # Remove rows where PLACE_DISTANCE is 5000 or more
-                result_df = result_df[result_df["PLACE_DISTANCE"] < 5000]
-
-                # Sort the result by distance
-                result_df = result_df.sort_values(by="PLACE_DISTANCE")
-
-                # Keep only the 10 closest places
-                result_df = result_df.head(10)
-                len_result_df = len(result_df)
-            else:
-                print(f"Target place '{target_place}' not found in the PLACE table.")
+        if ca_result["target_place"] != "NONE":
+            result_df = self.calculate_distance_and_sort(
+                ca_result["target_place"], result_df
+            )
 
         # Check if there are more than 10 rows
         truncate_flag = False
 
         if len(result_df) > 10:
             truncate_flag = True
-            result_df = result_df.sample(10, random_state=42)  # Randomly sample 10 rows
+
+            if ca_result["shuffle"]:
+                result_df = result_df.sample(10, random_state=42)
+            else:
+                result_df = result_df.head(10)
 
         result_json = result_df.to_json(orient="records", force_ascii=False)
-        # final_prompt = result_prompt_format.format(question, result_json)
 
+        final_prompt = self.prepare_final_prompt(
+            user_question, result_json, truncate_flag
+        )
+
+        parsed_json = inference(final_prompt, self.model)
+
+        # Print the response from the model
+        print("대답:", parsed_json["answer"])
+        print("요약:", parsed_json["summary"])
+
+        return parsed_json["answer"]
+
+    def get_previous_summary_str(self):
         # Convert previous_summary list to a string with bullet points
+        if len(self.previous_summary) == 0:
+            return "NONE"
+        else:
+            return "\n".join(
+                [f"- {item}" for item in self.previous_summary[:-1]] + ["- Latest"]
+            )
+
+    def analyze_context(self, input_dict):
+        ca_prompt_question = make_context_analysis_prompt_question(
+            previous_summary=self.get_previous_summary_str(), **input_dict
+        )
+        ca_result = inference(ca_prompt_question, self.model)
+        return ca_result
+
+    def handle_error(self, user_question, error_message):
+        final_prompt = make_cannot_generate_sql_prompt(user_question, error_message)
+        final_result = inference(final_prompt, self.model)
+        print("대답:", final_result)
+        return final_result
+
+    def execute_query(self, sql_query):
+        return ps.sqldf(sql_query, globals())
+
+    def filter_duplicates(self, result_df):
+        try:
+            result_df = result_df.drop_duplicates(
+                subset=["MCT_NM", "OP_YMD"], keep="first"
+            )
+        except Exception:
+            pass
+        return result_df
+
+    def calculate_distance_and_sort(self, target_place, result_df):
+        target_place = clean_place_name(target_place)
+        print("Try to find target place:", target_place)
+
+        place_df = self.get_place_coordinates(target_place)
+
+        if not place_df.empty:
+            place_lat = place_df.iloc[0]["LATITUDE"]
+            place_lon = place_df.iloc[0]["LONGITUDE"]
+
+            result_df["PLACE_DISTANCE"] = result_df.apply(
+                lambda row: calculate_distance(
+                    place_lat, place_lon, row["LATITUDE"], row["LONGITUDE"]
+                ),
+                axis=1,
+            )
+            result_df = result_df[result_df["PLACE_DISTANCE"] < 5000]
+            result_df = result_df.sort_values(by="PLACE_DISTANCE").head(10)
+        else:
+            print(f"Target place '{target_place}' not found in the PLACE table.")
+
+        return result_df
+
+    def get_place_coordinates(self, target_place):
+        place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME = '{target_place}' LIMIT 1;"
+        place_df = ps.sqldf(place_query, globals())
+
+        if place_df.empty:
+            print("Exact place not found. Trying to find a similar place.")
+            place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME LIKE '%{target_place}%' LIMIT 1;"
+            place_df = ps.sqldf(place_query, globals())
+
+        return place_df
+
+    def prepare_final_prompt(self, user_question, result_json, truncate_flag):
         if len(self.previous_summary) == 0:
             previous_summary_str = "NONE"
         else:
@@ -165,18 +174,9 @@ class Agent:
         )
 
         if truncate_flag:
-            final_prompt = (
-                final_prompt
-                + "\nNote: The result contains more than 10 entries. Only 10 have been shown randomly."
-            )
+            final_prompt += "\nNote: The result contains more than 10 entries. Only 10 have been shown."
 
-        parsed_json = inference(final_prompt, self.model)
-
-        # Print the response from the model
-        print("대답:", parsed_json["answer"])
-        print("요약:", parsed_json["summary"])
-
-        return parsed_json["answer"]
+        return final_prompt
 
     def reset(self):
         self.previous_summary = []
