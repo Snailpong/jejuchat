@@ -1,13 +1,10 @@
 import os
-import random
 import re
-import time
 
 import googlemaps
 import pandas as pd
 from geopy.distance import geodesic
 from geopy.geocoders import Nominatim
-from tqdm import tqdm
 
 # Initialize the Nominatim geolocator
 geolocator = Nominatim(user_agent="South Korea")

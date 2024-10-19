@@ -1,5 +1,3 @@
-import time
-
 import pandas as pd
 import requests
 from geopy.distance import geodesic

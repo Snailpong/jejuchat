@@ -32,7 +32,7 @@ def get_adddress_nominatim():
                 return location.latitude, location.longitude
             else:
                 return None, None
-        except Exception as e:
+        except Exception:
             return None, None
 
     address_df["Latitude"] = None

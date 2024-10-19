@@ -1,6 +1,6 @@
+import numpy as np
 import pandas as pd
 from geopy.distance import geodesic
-import numpy as np
 
 # Read the data
 df1 = pd.read_csv("data/JEJU_PARKING.csv", encoding="cp949")

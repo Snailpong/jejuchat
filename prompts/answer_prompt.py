@@ -93,9 +93,15 @@ Below is the information you need:
 }
 """
 
+
 def make_single_result_prompt(question, result_json, previous_summary):
-    result_prompt = result_prompt_format.format(question=question, result_json=result_json, previous_summary=previous_summary)
+    result_prompt = result_prompt_format.format(
+        question=question, result_json=result_json, previous_summary=previous_summary
+    )
     return result_prompt + "\n" + result_explanation_prompt
 
+
 def make_cannot_generate_sql_prompt(question, error_message):
-    return cannot_generate_sql_prompt_format.format(question=question, error_message=error_message)
+    return cannot_generate_sql_prompt_format.format(
+        question=question, error_message=error_message
+    )

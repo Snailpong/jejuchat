@@ -242,25 +242,40 @@ question_with_current_format = """
   Output:
 """
 
+
 def make_context_analysis_prompt_question(
-    user_question, 
-    use_current_location_time=False, 
-    weekday=None, 
-    hour=None, 
-    previous_summary=[]
+    user_question,
+    use_current_location_time=False,
+    weekday=None,
+    hour=None,
+    previous_summary=[],
 ):
     if len(previous_summary) == 0:
         previous_summary_str = "NONE"
     else:
-        previous_summary_str = "\n".join([f"- {item}" for item in previous_summary[:-1]] + ["- (Latest)"])
+        previous_summary_str = "\n".join(
+            [f"- {item}" for item in previous_summary[:-1]] + ["- (Latest)"]
+        )
 
     if use_current_location_time:
-        context_analysis_prompt_qeustion = context_analysis_prompt + question_with_current_format.format(user_question=user_question, weekday=weekday, hour=hour, previous_summary=previous_summary_str)
+        context_analysis_prompt_qeustion = (
+            context_analysis_prompt
+            + question_with_current_format.format(
+                user_question=user_question,
+                weekday=weekday,
+                hour=hour,
+                previous_summary=previous_summary_str,
+            )
+        )
     else:
-        context_analysis_prompt_qeustion = context_analysis_prompt + question_without_current_format.format(user_question=user_question, previous_summary=previous_summary_str)
-    
+        context_analysis_prompt_qeustion = (
+            context_analysis_prompt
+            + question_without_current_format.format(
+                user_question=user_question, previous_summary=previous_summary_str
+            )
+        )
+
     return context_analysis_prompt_qeustion
-    
 
 
 if __name__ == "__main__":

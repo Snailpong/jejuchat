@@ -12,9 +12,9 @@ chat = model.start_chat()
 
 
 def speak(text):
-  response = chat.send_message(text)
-  return response.text
+    response = chat.send_message(text)
+    return response.text
 
 
 while (prompt := input("You: ")) != "":
-  print("Bot:", speak(prompt))
+    print("Bot:", speak(prompt))
