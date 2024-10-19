@@ -1,3 +1,14 @@
+def get_model():
+    import google.generativeai as genai
+
+    from utils.api_key import google_ai_studio_api_key
+
+    genai.configure(api_key=google_ai_studio_api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+
+    return model
+
+
 def inference(prompt, model, return_json=True):
     from utils.string_utils import parse_json_from_str
 
