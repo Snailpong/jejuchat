@@ -1,135 +1,182 @@
-import os
-
-import faiss
-import google.generativeai as genai  # Gemini 설정
-import numpy as np
 import pandas as pd
-import torch
-from transformers import AutoModel, AutoTokenizer
+import pandasql as ps
 
-# 경로 설정
-module_path = "./modules"
+from prompts import (
+    make_cannot_generate_sql_prompt,
+    make_context_analysis_prompt_question,
+    make_single_question_prompt,
+    make_single_result_prompt,
+)
+from utils.geo_utils import calculate_distance
+from utils.inference_utils import get_model, inference
+from utils.string_utils import clean_place_name
 
-GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]
-
-genai.configure(api_key=GOOGLE_API_KEY)
-
-# Gemini 모델 선택
-model = genai.GenerativeModel("gemini-1.5-flash")
-chat = model.start_chat()
-# 경로 설정
-data_path = "./data"
-
-
-# import shutil
-# os.makedirs("/root/.streamlit", exist_ok=True)
-# shutil.copy("secrets.toml", "/root/.streamlit/secrets.toml")
+JEJU_MCT_DATA = pd.read_csv("data/JEJU_PROCESSED.csv", encoding="cp949")
+PLACE = pd.read_csv("data/JEJU_PLACES_MERGED.csv", encoding="cp949")
 
 
-# CSV 파일 로드
-## 자체 전처리를 거친 데이터 파일 활용
-csv_file_path = "JEJU_MCT_DATA_modified.csv"
-df = pd.read_csv(os.path.join(data_path, csv_file_path))
+class Agent:
+    def __init__(self):
+        self.model = get_model()
+        self.previous_summary = []
+        pass
 
-# 최신연월 데이터만 가져옴
-df = df[df["기준연월"] == df["기준연월"].max()].reset_index(drop=True)
+    def __call__(self, input_dict, debug=False):
+        use_current_location_time = input_dict["use_current_location_time"]
+        user_question = input_dict["user_question"]
+        if input_dict["use_current_location_time"]:
+            pass
 
-# 디바이스 설정
-if torch.cuda.is_available():
-    device = "cuda"
-elif torch.backends.mps.is_available():
-    device = "mps"
-else:
-    device = "cpu"
+        if debug:
+            print("질문:\t", user_question)
 
-# Hugging Face의 사전 학습된 임베딩 모델과 토크나이저 로드
-model_name = "jhgan/ko-sroberta-multitask"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-embedding_model = AutoModel.from_pretrained(model_name).to(device)
+        ca_prompt_question = make_context_analysis_prompt_question(**input_dict)
+        ca_result = inference(ca_prompt_question, self.model)
 
-print(f"Device is {device}.")
+        print(use_current_location_time, ca_result["target_place"])
 
+        if (not use_current_location_time) and ca_result["target_place"] != "NONE":
+            ca_result["result"] = "error"
+            ca_result["error_message"] = (
+                "Current location-related information requires permission to access current location or time data. Please enable access."
+            )
 
-# FAISS 인덱스 로드 함수
-def load_faiss_index(index_path=os.path.join(module_path, "faiss_index.index")):
-    """
-    FAISS 인덱스를 파일에서 로드합니다.
+        if ca_result["result"] != "ok":
+            # Final prompt for error, including the question and reason why it's not valid
+            final_prompt = make_cannot_generate_sql_prompt(
+                user_question, ca_result["error_message"]
+            )
 
-    Parameters:
-    index_path (str): 인덱스 파일 경로.
+            # 모델을 통해 답을 생성
+            final_result = inference(final_prompt, self.model)
 
-    Returns:
-    faiss.Index: 로드된 FAISS 인덱스 객체.
-    """
-    if os.path.exists(index_path):
-        # 인덱스 파일에서 로드
-        index = faiss.read_index(index_path)
-        print(f"FAISS 인덱스가 {index_path}에서 로드되었습니다.")
-        return index
-    else:
-        raise FileNotFoundError(f"{index_path} 파일이 존재하지 않습니다.")
+            print("대답:", final_result)
+            return
 
+        processed_question = ca_result["processed_question"]
+        target_place = ca_result["target_place"]
 
-# 텍스트 임베딩
-def embed_text(text):
-    # 토크나이저의 출력도 GPU로 이동
-    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True).to(
-        device
-    )
-    with torch.no_grad():
-        # 모델의 출력을 GPU에서 연산하고, 필요한 부분을 가져옴
-        embeddings = embedding_model(**inputs).last_hidden_state.mean(dim=1)
-    return embeddings.squeeze().cpu().numpy()  # 결과를 CPU로 이동하고 numpy 배열로 변환
+        single_question_prompt = make_single_question_prompt(processed_question)
 
+        query_result = inference(single_question_prompt, self.model)
+        print(query_result)
 
-# 임베딩 로드
-embeddings = np.load(os.path.join(module_path, "embeddings_array_file.npy"))
+        # Extract the SQL query from the parsed JSON
+        if query_result["result"] != "ok":
+            # Final prompt for error, including the question and reason why it's not valid
+            final_prompt = make_cannot_generate_sql_prompt(
+                user_question, query_result["error_message"]
+            )
 
+            # 모델을 통해 답을 생성
+            final_result = inference(final_prompt, self.model)
 
-# RAG
+            print("대답:", final_result)
+            return
 
-# FAISS 인덱스를 파일에서 로드
-index_path = os.path.join(module_path, "faiss_index.index")
-index = load_faiss_index(index_path)
+        sql_query = query_result["query"]
 
+        # print("생성된 쿼리:\t", sql_query)
 
-def generate_response_with_faiss(
-    question: str,
-    time,
-    local_choice,
-    max_count=10,
-    k=3,
-    print_prompt=True,
-) -> str:
-    filtered_df = df
+        # Execute the SQL query on the DataFrame
+        result_df = ps.sqldf(sql_query, globals())
 
-    # 검색 쿼리 임베딩 생성
-    query_embedding = embed_text(question).reshape(1, -1)
+        # YM 컬럼을 제외하고 MCT_NM, OP_YMD 기준으로 중복 제거
+        try:
+            result_df = result_df.drop_duplicates(
+                subset=["MCT_NM", "OP_YMD"], keep="first"
+            )
+        except:
+            pass
 
-    # 가장 유사한 텍스트 검색 (3배수)
-    distances, indices = index.search(query_embedding, k * 3)
+        # Print the result
+        len_result_df = len(result_df)
 
-    # FAISS로 검색된 상위 k개의 데이터프레임 추출
-    filtered_df = filtered_df.iloc[indices[0, :]].copy().reset_index(drop=True)
+        if result_df.empty:
+            print("조회된 결과가 없습니다.")
+        else:
+            print(len_result_df, "개 조회됨: ", ", ".join(result_df["MCT_NM"][:10]))
 
-    filtered_df = filtered_df.reset_index(drop=True).head(k)
+        # If there is a target_place specified, calculate distance from target_place
+        if target_place != "NONE":
+            target_place = clean_place_name(target_place)
+            print("Try to find target place:", target_place)
 
-    # 선택된 결과가 없으면 처리
-    if filtered_df.empty:
-        return "질문과 일치하는 가게가 없습니다."
+            # Fetch the latitude and longitude of the target_place from the PLACE table
+            place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME = '{target_place}' LIMIT 1;"
+            place_df = ps.sqldf(place_query, globals())
 
-    # 참고할 정보와 프롬프트 구성
-    reference_info = "\n".join(filtered_df["text"].to_list())
+            if not place_df.empty:
+                print("Exact place found.")
+            if place_df.empty:
+                print(
+                    "Exact place not found. Try to find the most similar place containing the target_place."
+                )
+                # If the exact place is not found, try to find the most similar place containing the target_place
+                place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME LIKE '%{target_place}%' LIMIT 1;"
+                place_df = ps.sqldf(place_query, globals())
 
-    # 응답을 받아오기 위한 프롬프트 생성
-    prompt = f"질문: {question} 특히 {local_choice}을 선호해\n참고할 정보:\n{reference_info}\n응답:"
+                if not place_df.empty:
+                    print("Similar place found.")
 
-    if print_prompt:
-        print("-----------------------------" * 3)
-        print(prompt)
-        print("-----------------------------" * 3)
+            if not place_df.empty:
+                place_lat = place_df.iloc[0]["LATITUDE"]
+                place_lon = place_df.iloc[0]["LONGITUDE"]
 
-    # 응답 생성
-    response = chat.send_message(prompt)
+                # Calculate the distance for each row in the result_df
+                result_df["PLACE_DISTANCE"] = result_df.apply(
+                    lambda row: calculate_distance(
+                        place_lat, place_lon, row["LATITUDE"], row["LONGITUDE"]
+                    ),
+                    axis=1,
+                )
+                # Remove rows where PLACE_DISTANCE is 5000 or more
+                result_df = result_df[result_df["PLACE_DISTANCE"] < 5000]
 
-    return response.text
+                # Sort the result by distance
+                result_df = result_df.sort_values(by="PLACE_DISTANCE")
+
+                # Keep only the 10 closest places
+                result_df = result_df.head(10)
+                len_result_df = len(result_df)
+            else:
+                print(f"Target place '{target_place}' not found in the PLACE table.")
+
+        # Check if there are more than 10 rows
+        truncate_flag = False
+
+        if len(result_df) > 10:
+            truncate_flag = True
+            result_df = result_df.sample(10, random_state=42)  # Randomly sample 10 rows
+
+        result_json = result_df.to_json(orient="records", force_ascii=False)
+        # final_prompt = result_prompt_format.format(question, result_json)
+
+        # Convert previous_summary list to a string with bullet points
+        if len(self.previous_summary) == 0:
+            previous_summary_str = "NONE"
+        else:
+            previous_summary_str = "\n".join(
+                [f"- {item}" for item in self.previous_summary[:-1]] + ["- Latest"]
+            )
+
+        final_prompt = make_single_result_prompt(
+            user_question, result_json, previous_summary_str
+        )
+
+        if truncate_flag:
+            final_prompt = (
+                final_prompt
+                + "\nNote: The result contains more than 10 entries. Only 10 have been shown randomly."
+            )
+
+        parsed_json = inference(final_prompt, self.model)
+
+        # Print the response from the model
+        print("대답:", parsed_json["answer"])
+        print("요약:", parsed_json["summary"])
+
+        return parsed_json["answer"]
+
+    def reset(self):
+        self.previous_summary = []
