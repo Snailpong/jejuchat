@@ -65,7 +65,7 @@ Example handling:
 ```
 """
 
-cannot_generate_sql_prompt_format = """
+cannot_generate_sql_prompt = """
 You are tasked with explaining to the user in Korean why their query could not be processed. Use clear and friendly language to inform the user about the reason for the error. Below is the structure of your response in JSON format, with two fields: **"answer"** and **"summary"**.
 
 - The **"answer"** field provides the explanation to the user, detailing why their query couldn't be processed and offering suggestions.
@@ -78,10 +78,6 @@ You are tasked with explaining to the user in Korean why their query could not b
 
 - You are encouraged to generate similarly structured but varied responses that keep the tone conversational and friendly, making the user feel more engaged.
 
-Below is the information you need:
-- Question: "{question}"
-- Error Message: "{error_message}"
-
 ### Example JSON Response:
 
 ```json
@@ -91,6 +87,13 @@ Below is the information you need:
   더 도움이 필요하시면 언제든 말씀해주세요!",
   "summary": "제주도 날씨에 대해 물어보셨지만, 시스템은 날씨 정보를 처리할 수 없습니다."
 }
+
+"""
+
+cannot_generate_sql_question_format = """
+Below is the information you need:
+- Question: "{question}"
+- Error Message: "{error_message}"
 """
 
 
@@ -102,6 +105,6 @@ def make_single_result_prompt(question, result_json, previous_summary):
 
 
 def make_cannot_generate_sql_prompt(question, error_message):
-    return cannot_generate_sql_prompt_format.format(
+    return cannot_generate_sql_prompt + cannot_generate_sql_question_format.format(
         question=question, error_message=error_message
     )
