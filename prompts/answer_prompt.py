@@ -48,7 +48,7 @@ Please analyze the SQL result and previous summaries, and provide a simple, clea
 
 ### Important Update:
 
-- **Handle Result Availability**: If there are SQL query results, ensure that the response reflects that data is available. Do **not** state that there are no results when there are actually results available. Always provide the available data unless there is truly no result.
+- **Handle Result Availability**: If there are SQL query results, ensure that the response reflects that data is available. Always provide the available data.
   - If there are fewer results than the user expected, still display the results and explain the number available.
 
 - **Always Show Available Results (even if closed)**: If the query asks for stores that are closed during certain hours (e.g., 고기국수집 closed in the morning), **always display the results if any stores match the query**. Even if the stores are closed at the requested time, they should still be presented as results. Provide an explanation if necessary, noting that they may be closed during certain hours, but still relevant to the user's query.

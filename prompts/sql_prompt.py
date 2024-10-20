@@ -106,11 +106,11 @@ Error Messages:
 - MON_UE_CNT_RAT, TUE_UE_CNT_RAT, WED_UE_CNT_RAT, THU_UE_CNT_RAT, FRI_UE_CNT_RAT, SAT_UE_CNT_RAT, SUN_UE_CNT_RAT, SUN_UE_CNT_RAT: FLOAT, daily usage rate percentages (e.g., Monday usage rate).
 
 - Time-slot Usage Rate Columns (HR_5_11_UE_CNT_RAT to HR_23_4_UE_CNT_RAT): Represent customer usage percentages for different time slots.
-  - HR_5_11_UE_CNT_RAT: 5:00 AM - 11:59 AM.
-  - HR_12_13_UE_CNT_RAT: 12:00 PM - 1:59 PM.
-  - HR_14_17_UE_CNT_RAT: 2:00 PM - 5:59 PM.
-  - HR_18_22_UE_CNT_RAT: 6:00 PM - 10:59 PM.
-  - HR_23_4_UE_CNT_RAT: 11:00 PM - 4:59 AM.
+  - HR_5_11_UE_CNT_RAT: 5:00 AM - 11:59 AM. (아침)
+  - HR_12_13_UE_CNT_RAT: 12:00 PM - 1:59 PM. (점심)
+  - HR_14_17_UE_CNT_RAT: 2:00 PM - 5:59 PM. (오후)
+  - HR_18_22_UE_CNT_RAT: 6:00 PM - 10:59 PM. (저녁, 밤)
+  - HR_23_4_UE_CNT_RAT: 11:00 PM - 4:59 AM. (새벽, 한밤중)
 
 - Gender-Based Columns:
   - RC_M12_MAL_CUS_CNT_RAT: Percentage of male customers.
@@ -168,16 +168,16 @@ Error Messages:
 ### Examples
 - Example 1:
 Input:
-  processed_question: "제주시 한림읍에 있는 카페 중 30대 이용 비중이 가장 높은 곳은?",
+  processed_question: "제주시 한림읍에 있는 카페 중 30대 이용 비중이 가장 높은 곳은?"
 Output:
 {
   "result": "ok",
-  "query": "SELECT * FROM JEJU_MCT_DATA WHERE ADDR_1 = '제주시' AND ADDR_2 = '한림읍' AND MCT_TYPE IN ('커피', '차') ORDER BY RC_M12_AGE_30_CUS_CNT_RAT DESC LIMIT 1;",
+  "query": "SELECT * FROM JEJU_MCT_DATA WHERE ADDR_1 = '제주시' AND ADDR_2 = '한림읍' AND MCT_TYPE IN ('커피', '차') ORDER BY RC_M12_AGE_30_CUS_CNT_RAT DESC LIMIT 1;"
 }
 
 - Example 2:
 Input:
-  processed_question: "제주시 노형동에 있는 단품요리 전문점 중 이용건수가 상위 10%에 속하고 현지인 이용 비중이 가장 높은 곳은?",
+  processed_question: "제주시 노형동에 있는 단품요리 전문점 중 이용건수가 상위 10%에 속하고 현지인 이용 비중이 가장 높은 곳은?"
 
 Output:
 {
@@ -199,10 +199,8 @@ Output:
 """
 
 if __name__ == "__main__":
-    import time
-
     from questions.context_analysis_question import ca_question_list
-    from utils.inference_utils import get_model, inference
+    from utils.inference_utils import get_model
     from utils.string_utils import count_prompt_token
 
     model = get_model()
@@ -210,10 +208,11 @@ if __name__ == "__main__":
     print(f"Prompt Token Count: {num_tokens}")
 
     for i, ca_question in enumerate(ca_question_list):
-        ex_prompt = make_context_analysis_prompt_question(*ca_question)
-        if i == 0:
-            print(f"Question Token Count: {count_prompt_token(model, ex_prompt)}")
-        print()
-        print(f"Question {i + 1}: {ca_question[0]}")
-        print(f"Output: {inference(ex_prompt, model)}")
-        time.sleep(5)
+        pass
+        # ex_prompt = make_context_analysis_prompt_question(*ca_question)
+        # if i == 0:
+        #     print(f"Question Token Count: {count_prompt_token(model, ex_prompt)}")
+        # print()
+        # print(f"Question {i + 1}: {ca_question[0]}")
+        # print(f"Output: {inference(ex_prompt, model)}")
+        # time.sleep(5)
