@@ -19,20 +19,18 @@ class Agent:
     def __init__(self):
         self.model = get_model()
         self.previous_summary = []
+        self.debug = False
         pass
 
     def __call__(self, input_dict, debug=False):
+        self.debug = debug
         use_current_location_time = input_dict["use_current_location_time"]
         user_question = input_dict["user_question"]
         if input_dict["use_current_location_time"]:
             pass
-
-        if debug:
-            print("질문:\t", user_question)
+        self.log_debug("질문:\t", user_question)
 
         ca_result = self.analyze_context(input_dict)
-
-        print(use_current_location_time, ca_result["target_place"])
 
         if (not use_current_location_time) and ca_result["target_place"] != "NONE":
             return self.handle_error(
@@ -48,7 +46,7 @@ class Agent:
         single_question_prompt = make_single_question_prompt(processed_question)
 
         query_result = inference(single_question_prompt, self.model)
-        print(query_result)
+        self.log_debug(query_result)
 
         if query_result["result"] != "ok":
             return self.handle_error(user_question, query_result["error_message"])
@@ -58,9 +56,11 @@ class Agent:
         len_result_df = len(result_df)
 
         if result_df.empty:
-            print("조회된 결과가 없습니다.")
+            self.log_debug("조회된 결과가 없습니다.")
         else:
-            print(len_result_df, "개 조회됨: ", ", ".join(result_df["MCT_NM"][:10]))
+            self.log_debug(
+                len_result_df, "개 조회됨: ", ", ".join(result_df["MCT_NM"][:10])
+            )
 
         # If there is a target_place specified, calculate distance from target_place
         if ca_result["target_place"] != "NONE":
@@ -88,10 +88,16 @@ class Agent:
         parsed_json = inference(final_prompt, self.model)
 
         # Print the response from the model
-        print("대답:", parsed_json["answer"])
-        print("요약:", parsed_json["summary"])
+        self.log_debug("대답:", parsed_json["answer"])
+        self.log_debug("요약:", parsed_json["summary"])
+
+        self.update_previous_summary(parsed_json["summary"])
 
         return parsed_json["answer"]
+
+    def log_debug(self, *log):
+        if self.debug:
+            print(" ".join(map(str, log)))
 
     def get_previous_summary_str(self):
         # Convert previous_summary list to a string with bullet points
@@ -112,7 +118,7 @@ class Agent:
     def handle_error(self, user_question, error_message):
         final_prompt = make_cannot_generate_sql_prompt(user_question, error_message)
         final_result = inference(final_prompt, self.model)
-        print("대답:", final_result)
+        self.log_debug("대답:", final_result)
         return final_result
 
     def execute_query(self, sql_query):
@@ -129,7 +135,7 @@ class Agent:
 
     def calculate_distance_and_sort(self, target_place, result_df):
         target_place = clean_place_name(target_place)
-        print("Try to find target place:", target_place)
+        self.log_debug("Try to find target place:", target_place)
 
         place_df = self.get_place_coordinates(target_place)
 
@@ -146,7 +152,9 @@ class Agent:
             result_df = result_df[result_df["PLACE_DISTANCE"] < 5000]
             result_df = result_df.sort_values(by="PLACE_DISTANCE").head(10)
         else:
-            print(f"Target place '{target_place}' not found in the PLACE table.")
+            self.log_debug(
+                f"Target place '{target_place}' not found in the PLACE table."
+            )
 
         return result_df
 
@@ -155,7 +163,7 @@ class Agent:
         place_df = ps.sqldf(place_query, globals())
 
         if place_df.empty:
-            print("Exact place not found. Trying to find a similar place.")
+            self.log_debug("Exact place not found. Trying to find a similar place.")
             place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME LIKE '%{target_place}%' LIMIT 1;"
             place_df = ps.sqldf(place_query, globals())
 
@@ -177,6 +185,11 @@ class Agent:
             final_prompt += "\nNote: The result contains more than 10 entries. Only 10 have been shown."
 
         return final_prompt
+
+    def update_previous_summary(self, summary):
+        self.previous_summary.append(summary)
+        if len(self.previous_summary) == 5:
+            del self.previous_summary[0]
 
     def reset(self):
         self.previous_summary = []

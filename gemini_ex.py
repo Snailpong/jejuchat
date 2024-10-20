@@ -13,7 +13,7 @@ def get_reply_from_question(question_dict):
 
     input_dict = {"user_question": question, "use_current_location_time": False}
 
-    response = agent(input_dict)
+    response = agent(input_dict, debug=True)
     return
 
 
