@@ -21,6 +21,7 @@ dependencies = [
 
 [tool.uv]
 dev-dependencies = [
+    "beautifulsoup4>=4.12.3",
     "googlemaps>=4.10.0",
     "ipykernel>=6.29.5",
     "overpy>=0.7",
