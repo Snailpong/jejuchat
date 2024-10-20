@@ -2,7 +2,6 @@ import os
 from datetime import datetime
 
 import streamlit as st
-from streamlit_geolocation import streamlit_geolocation
 
 from agent import Agent
 
@@ -70,10 +69,9 @@ with st.sidebar:
 
     # Group location-related inputs into an expandable box
     with st.expander("Location Settings", expanded=True):
-        use_current_location = st.checkbox("현재 정보 활용")
-        location = streamlit_geolocation()
-        latitude = st.number_input("위도", format="%.6f", value=location["latitude"])
-        longitude = st.number_input("경도", format="%.6f", value=location["longitude"])
+        use_current_location_time = st.checkbox("현재 정보 활용")
+        latitude = st.number_input("위도", format="%.6f", value=33.558277)
+        longitude = st.number_input("경도", format="%.6f", value=126.75978)
 
         user_time = st.time_input("현재 시간", value=datetime.now())
         weekdays = [
@@ -150,17 +148,40 @@ if prompt := st.chat_input():  # (disabled=not replicate_api):
 
 # Generate a new response if last message is not from assistant
 if st.session_state.messages[-1]["role"] != "assistant":
+    agent.debug = devmode
+
+    input_dict = {
+        "use_current_location_time": use_current_location_time,
+        "user_question": prompt,
+        "weekday": None,
+        "hour": None,
+        "latitude": None,
+        "longitude": None,
+    }
+    if use_current_location_time:
+        current_info = {
+            "weekday": selected_weekday,
+            "hour": user_time.hour,
+            "latitude": latitude,
+            "longitude": longitude,
+        }
+        input_dict.update(current_info)
+
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            # Pass latitude and longitude to the response generator
-            response = agent(
-                {
-                    "use_current_location_time": use_current_location,
-                    "user_question": prompt,
-                    "weekday": selected_weekday,
-                    "hour": user_time.hour,
-                }
-            )
-            st.markdown(response)
+        agent.set_state("챗봇이 질문을 받고 있어요.")
+        agent.set_input(input_dict)
+        while agent.state != "준비 중이에요.":
+            with st.spinner(agent.state):
+                response = agent()
+
+        if devmode:
+            try:
+                query = agent.query_result["query"]
+                response = f"SQL 쿼리: `{query}`\n\n{response}"
+            except Exception as _:
+                pass
+
+        st.markdown(response)
+
     message = {"role": "assistant", "content": response}
     st.session_state.messages.append(message)

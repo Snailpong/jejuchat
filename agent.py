@@ -43,7 +43,7 @@ class Agent:
             self.filter_restaurants()
             return
 
-        if self.state == "추천해 드릴 식당을 찾아서 작성하고 있어요. 거의 다 끝났어요.":
+        if self.state == "추천해드릴 식당을 찾았어요. 거의 다 끝났어요.":
             response = self.generate_ok_answer()
             return response
 
@@ -116,16 +116,27 @@ class Agent:
         if result_df.empty:
             self.log_debug("조회된 결과가 없습니다.")
         else:
-            self.log_debug(
-                len_result_df, "개 조회됨: ", ", ".join(result_df["MCT_NM"][:10])
-            )
+            self.log_debug(f"SQL 쿼리 결과가 {len_result_df} 개 조회되었어요")
 
         # If there is a target_place specified, calculate distance from target_place
         if ca_result["target_place"] != "NONE":
             self.log_debug("근처 식당 필터링을 수행합니다.")
-            result_df = self.calculate_distance_and_sort(
+            result, result_df = self.calculate_distance_and_sort(
                 ca_result["target_place"], result_df
             )
+
+            if result != "ok":
+                self.error_message = result
+                self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+                return
+
+        self.log_debug(f"최종적으로 조건에 맞는 식당을 {len(result_df)}개 찾았어요.")
+        self.log_debug(f"식당 리스트(최대 10개): {' '.join(result_df['MCT_NM'][:10])}")
+
+        if len(result_df) == 0:
+            self.error_message = "해당 조건에 맞는 데이터가 없어요."
+            self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+            return
 
         # Check if there are more than 10 rows
         truncate_flag = False
@@ -141,7 +152,7 @@ class Agent:
         self.truncate_flag = truncate_flag
         self.result_df = result_df
 
-        self.set_state("추천해 드릴 식당을 찾아서 작성하고 있어요. 거의 다 끝났어요.")
+        self.set_state("추천해드릴 식당을 찾았어요. 거의 다 끝났어요.")
 
     def generate_ok_answer(self):
         truncate_flag = self.truncate_flag
@@ -190,7 +201,11 @@ class Agent:
 
     def analyze_context(self, input_dict):
         ca_prompt_question = make_context_analysis_prompt_question(
-            previous_summary=self.get_previous_summary_str(), **input_dict
+            user_question=input_dict["user_question"],
+            use_current_location_time=input_dict["use_current_location_time"],
+            weekday=input_dict["weekday"],
+            hour=input_dict["hour"],
+            previous_summary=self.get_previous_summary_str(),
         )
         ca_result = inference(ca_prompt_question, self.model)
         return ca_result
@@ -204,33 +219,45 @@ class Agent:
                 subset=["MCT_NM", "OP_YMD"], keep="first"
             )
         except Exception:
-            pass
+            self.log_debug("result_df.drop_duplicates failed")
         return result_df
 
     def calculate_distance_and_sort(self, target_place, result_df):
-        target_place = clean_place_name(target_place)
-        self.log_debug("Try to find target place:", target_place)
+        place_lon, place_lat = None, None
 
-        place_df = self.get_place_coordinates(target_place)
+        if target_place == "HERE":
+            place_lat = self.input_dict["latitude"]
+            place_lon = self.input_dict["longitude"]
 
-        if not place_df.empty:
-            place_lat = place_df.iloc[0]["LATITUDE"]
-            place_lon = place_df.iloc[0]["LONGITUDE"]
-
-            result_df["PLACE_DISTANCE"] = result_df.apply(
-                lambda row: calculate_distance(
-                    place_lat, place_lon, row["LATITUDE"], row["LONGITUDE"]
-                ),
-                axis=1,
-            )
-            result_df = result_df[result_df["PLACE_DISTANCE"] < 5000]
-            result_df = result_df.sort_values(by="PLACE_DISTANCE").head(10)
         else:
-            self.log_debug(
+            target_place = clean_place_name(target_place)
+            self.log_debug("Try to find target place:", target_place)
+
+            place_df = self.get_place_coordinates(target_place)
+
+            if not place_df.empty:
+                place_lat = place_df.iloc[0]["LATITUDE"]
+                place_lon = place_df.iloc[0]["LONGITUDE"]
+
+        if place_lon is None:
+            error_message = (
                 f"Target place '{target_place}' not found in the PLACE table."
             )
+            self.log_debug(error_message)
+            return error_message, None
 
-        return result_df
+        result_df["PLACE_DISTANCE"] = result_df.apply(
+            lambda row: calculate_distance(
+                place_lat, place_lon, row["LATITUDE"], row["LONGITUDE"]
+            ),
+            axis=1,
+        )
+        result_df = result_df[result_df["PLACE_DISTANCE"] < 5000]
+
+        self.log_debug(f"거리 조건에 맞는 식당을 {len(result_df)}개 찾았어요.")
+        result_df = result_df.sort_values(by="PLACE_DISTANCE").head(10)
+
+        return "ok", result_df
 
     def get_place_coordinates(self, target_place):
         place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME = '{target_place}' LIMIT 1;"
