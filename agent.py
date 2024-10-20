@@ -16,8 +16,8 @@ PLACE = pd.read_csv("data/JEJU_PLACES_MERGED.csv", encoding="cp949")
 
 
 class Agent:
-    def __init__(self):
-        self.model = get_model()
+    def __init__(self, api_key: str):
+        self.model = get_model(api_key=api_key)
         self.previous_summary = []
         pass
 

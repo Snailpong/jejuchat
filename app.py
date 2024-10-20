@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 import streamlit as st
@@ -6,7 +7,15 @@ from streamlit_geolocation import streamlit_geolocation
 from agent import Agent
 
 if "agent" not in st.session_state:
-    st.session_state.agent = Agent()
+    if api_key := os.getenv("OPENAI_API_KEY"):
+        pass
+    else:
+        from utils.api_key import google_ai_studio_api_key  # type: ignore
+
+        api_key = google_ai_studio_api_key
+
+    st.session_state.agent = Agent(api_key=api_key)
+
 agent = st.session_state.agent
 
 # Streamlit App UI
