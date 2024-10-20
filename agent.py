@@ -18,28 +18,77 @@ PLACE = pd.read_csv("data/JEJU_PLACES_MERGED.csv", encoding="cp949")
 class Agent:
     def __init__(self, api_key: str):
         self.model = get_model(api_key=api_key)
+
+        self.state = "준비 중이에요."
+        self.input_dict = None
         self.previous_summary = []
         self.debug = False
-        pass
 
-    def __call__(self, input_dict, debug=False):
-        self.debug = debug
+    def set_state(self, state):
+        self.state = state
+
+    def set_input(self, input_dict):
+        self.input_dict = input_dict
+
+    def __call__(self):
+        if self.state == "챗봇이 질문을 받고 있어요.":
+            self.process_input()
+            return
+
+        if self.state == "조건에 맞는 식당을 찾을 준비를 하고 있어요.":
+            self.generate_sql()
+            return
+
+        if self.state == "좋아하실 만한 식당을 찾고 있어요.":
+            self.filter_restaurants()
+            return
+
+        if self.state == "추천해 드릴 식당을 찾아서 작성하고 있어요. 거의 다 끝났어요.":
+            response = self.generate_ok_answer()
+            return response
+
+        if self.state == "문제가 생겨서 해결 방법을 찾고 있어요.":
+            response = self.generate_error_answer()
+            return response
+
+        else:
+            self.state = "준비 중이에요."
+            return (
+                "죄송해요. 처리 중에 문제가 생긴 것 같아요. 잠시 후 다시 시도해주세요."
+            )
+
+    def process_input(self):
+        input_dict = self.input_dict
         use_current_location_time = input_dict["use_current_location_time"]
         user_question = input_dict["user_question"]
         if input_dict["use_current_location_time"]:
             pass
         self.log_debug("질문:\t", user_question)
+        self.set_state("질문을 이해하고 있어요.")
 
         ca_result = self.analyze_context(input_dict)
+        self.log_debug(ca_result)
 
-        if (not use_current_location_time) and ca_result["target_place"] != "NONE":
-            return self.handle_error(
-                user_question,
-                "Current location-related information requires permission to access current location or time data. Please enable access.",
-            )
+        if (
+            ca_result["result"] == "ok"
+            and (not use_current_location_time)
+            and ca_result["target_place"] == "HERE"
+        ):
+            self.error_message = "Current location-related information requires permission to access current location or time data. Please enable access."
+            self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+            return
 
         if ca_result["result"] != "ok":
-            return self.handle_error(user_question, ca_result["error_message"])
+            self.error_message = ca_result["error_message"]
+            self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+            return
+
+        self.ca_result = ca_result
+
+        self.set_state("조건에 맞는 식당을 찾을 준비를 하고 있어요.")
+
+    def generate_sql(self):
+        ca_result = self.ca_result
 
         processed_question = ca_result["processed_question"]
 
@@ -49,7 +98,16 @@ class Agent:
         self.log_debug(query_result)
 
         if query_result["result"] != "ok":
-            return self.handle_error(user_question, query_result["error_message"])
+            self.error_message = query_result["error_message"]
+            self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+            return
+
+        self.query_result = query_result
+        self.set_state("좋아하실 만한 식당을 찾고 있어요.")
+
+    def filter_restaurants(self):
+        ca_result = self.ca_result
+        query_result = self.query_result
 
         result_df = self.execute_query(query_result["query"])
         result_df = self.filter_duplicates(result_df)
@@ -64,6 +122,7 @@ class Agent:
 
         # If there is a target_place specified, calculate distance from target_place
         if ca_result["target_place"] != "NONE":
+            self.log_debug("근처 식당 필터링을 수행합니다.")
             result_df = self.calculate_distance_and_sort(
                 ca_result["target_place"], result_df
             )
@@ -79,6 +138,16 @@ class Agent:
             else:
                 result_df = result_df.head(10)
 
+        self.truncate_flag = truncate_flag
+        self.result_df = result_df
+
+        self.set_state("추천해 드릴 식당을 찾아서 작성하고 있어요. 거의 다 끝났어요.")
+
+    def generate_ok_answer(self):
+        truncate_flag = self.truncate_flag
+        result_df = self.result_df
+        user_question = self.input_dict["user_question"]
+
         result_json = result_df.to_json(orient="records", force_ascii=False)
 
         final_prompt = self.prepare_final_prompt(
@@ -92,8 +161,19 @@ class Agent:
         self.log_debug("요약:", parsed_json["summary"])
 
         self.update_previous_summary(parsed_json["summary"])
+        self.state = "준비 중이에요."
 
         return parsed_json["answer"]
+
+    def generate_error_answer(self):
+        user_question = self.input_dict["user_question"]
+        error_message = self.error_message
+
+        final_prompt = make_cannot_generate_sql_prompt(user_question, error_message)
+        final_result = inference(final_prompt, self.model)
+        self.log_debug("대답:", final_result)
+        self.state = "준비 중이에요."
+        return final_result["answer"]
 
     def log_debug(self, *log):
         if self.debug:
@@ -114,12 +194,6 @@ class Agent:
         )
         ca_result = inference(ca_prompt_question, self.model)
         return ca_result
-
-    def handle_error(self, user_question, error_message):
-        final_prompt = make_cannot_generate_sql_prompt(user_question, error_message)
-        final_result = inference(final_prompt, self.model)
-        self.log_debug("대답:", final_result)
-        return final_result
 
     def execute_query(self, sql_query):
         return ps.sqldf(sql_query, globals())
