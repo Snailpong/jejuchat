@@ -7,7 +7,7 @@ from streamlit_geolocation import streamlit_geolocation
 from agent import Agent
 
 if "agent" not in st.session_state:
-    if api_key := os.getenv("OPENAI_API_KEY"):
+    if api_key := os.getenv("GOOGLE_API_KEY"):
         pass
     else:
         from utils.api_key import google_ai_studio_api_key  # type: ignore
