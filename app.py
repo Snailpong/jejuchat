@@ -1,9 +1,11 @@
 import os
+import random
 from datetime import datetime
 
 import streamlit as st
 
 from agent import Agent
+from questions.example_question import app_question_list
 from utils.codes import STATE_CODE_DICT
 
 if "agent" not in st.session_state:
@@ -18,9 +20,7 @@ if "agent" not in st.session_state:
 
 agent = st.session_state.agent
 
-# Streamlit App UI
-
-st.set_page_config(page_title="🍊참신한 제주 맛집!")
+st.set_page_config(page_title="제주 맛집 추천 챗봇 🍊")
 
 # Replicate Credentials
 with st.sidebar:
@@ -33,25 +33,42 @@ with st.sidebar:
         user_time = st.time_input("현재 시간", value=datetime.now())
     devmode = st.checkbox("dev 모드 (SQL쿼리 출력)")
 
-st.title("혼저 옵서예!👋")
-st.subheader("군맛난 제주 밥집🧑‍🍳 추천해드릴게예")
-st.write(
-    "#흑돼지 #갈치조림 #옥돔구이 #고사리해장국 #전복뚝배기 #한치물회 #빙떡 #오메기떡..🤤"
-)
 
-# Store LLM generated responses
+TITLE = "제주 맛집 추천 챗봇 🍊"
+ONBOARD_MESSAGE = "**다음과 같은 질문을 할 수 있어요.👇 참고해서 질문해 주세요! 🧑‍🍳**"
+FIRST_MESSAGE = "혼저 옵서예! 👋 제주 맛집 추천 챗봇이에요. 🍊 \n\n고민하지 마시고 질문해주시면 성심성의껏 찾아드릴게요! 💪"
+
+st.title(TITLE)
+
+
+def onboarding_chat():
+    st.markdown(ONBOARD_MESSAGE)
+
+    for question in st.session_state.random_questions:
+        if st.button(question) and agent.state == "READY":
+            st.session_state.messages.append({"role": "user", "content": question})
+
+
 if "messages" not in st.session_state.keys():
+    if "random_questions" not in st.session_state.keys():
+        st.session_state.random_questions = random.sample(app_question_list, 4)
+
     st.session_state.messages = [
-        {"role": "assistant", "content": "어드런 식당 찾으시쿠과?"}
+        {
+            "role": "assistant",
+            "content": FIRST_MESSAGE,
+        }
     ]
 
 # Display or clear chat messages
+onboarding_chat()
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
 
 def clear_chat_history():
+    agent.reset()
     st.session_state.messages = [
         {"role": "assistant", "content": "어드런 식당 찾으시쿠과?"}
     ]
@@ -72,7 +89,7 @@ if st.session_state.messages[-1]["role"] != "assistant":
 
     input_dict = {
         "use_current_location_time": use_current_location_time,
-        "user_question": prompt,
+        "user_question": st.session_state.messages[-1],
         "weekday": None,
         "hour": None,
     }
