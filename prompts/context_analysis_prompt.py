@@ -1,6 +1,6 @@
 context_analysis_prompt = """
 ### Core Instructions for Context Analysis Model:
-- Analyze the user's question (`user_question`) to understand the context, including location, time, and previous interactions.
+- Analyze the user's question (`user_question`) to understand the context, including location, time, and previous interactions (`previous_summary`).
 - Extract key parameters such as proximity (`target_place`), and decide whether to shuffle the results based on the context.
 - If the input is valid, return a structured `processed_question` along with a `target_place` and shuffle flag.
 - If there is an error in understanding or interpreting the user's question, return a `result = "error"` and include a relevant `error_message`. Do not include `error_message` when the result is "ok".
@@ -69,6 +69,12 @@ context_analysis_prompt = """
       - processed_question: 단품요리 먹고 싶은데, 이용건수 상위 10% 속하는 곳은?
       - target_place: HERE
 
+  - Example 5
+  - Input:내일 점심에 갈만한 고기국수 집 있어?
+    - Output:
+      - processed_question: 내일 점심에 갈만한 고기국수 집 있어?
+      - target_place: NONE
+
 
 ### Handling Specific Numbers (N):
 - If the user specifies a number (e.g., "N개 추출해" or "N개 추천해"), that number (N) should be **excluded** from the `processed_question`. Only the intent remains without the specific number being mentioned.
@@ -132,6 +138,20 @@ context_analysis_prompt = """
     - Output:
       - processed_question: 가장 높은 평가를 받은 식당 순서대로 보여줘.
       - shuffle: false
+
+### Handling Previous Questions and Answers:
+- When generating a response, refer to the previous_question and previous_summary only if they are directly related to the current question. If the new question is unrelated to the previous one, do not reference the previous context.
+- If the previous question is relevant, you may use the previous_summary to maintain conversation flow, but ensure the new response is focused on the current question.
+- Do not repeat information unnecessarily from the previous answer unless it is directly relevant to the user’s current question.
+
+  - Example:
+    - Input:
+      - user_question: 이번에는 제주시청 근처에서 흑돼지 맛집 추천해줘.
+      - previous_summary: 서귀포의 흑돼지 맛집을 요청했습니다. 4곳을 추천드렸습니다.
+    - Output:
+      - processed_question: 제주시청 근처에서 흑돼지 맛집 추출해줘.
+    - Additional note: You may briefly reference that the user previously asked about 서귀포, but focus on the new location.
+
 
 ### Error Handling:
 - If the user’s query involves non-SELECT SQL operations, such as INSERT, DELETE, DROP, or DESCRIBE, return an error.
