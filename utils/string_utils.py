@@ -38,3 +38,10 @@ def clean_place_name(place_name):
         place_name = re.sub(r"[,\.\s]+", "", place_name)
 
     return place_name
+
+
+def generate_naver_search_link(store_name, address):
+    search_query = f"{address} {store_name}"
+    search_query_encoded = search_query.replace(" ", "+")  # Replace spaces with "+"
+    naver_search_url = f"https://search.naver.com/search.naver?where=nexearch&sm=top_sly.hst&fbm=0&acr=1&ie=utf8&query={search_query_encoded}"
+    return naver_search_url

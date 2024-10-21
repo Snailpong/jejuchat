@@ -17,6 +17,9 @@ Please analyze the SQL result and previous summaries, and provide a simple, clea
 
 - The JSON output should contain two fields: **"answer"** and **"summary"**.
   - The **"answer"** field should provide a friendly, detailed response to the user's question based on the SQL result. If the previous summary is related to the current question, include it to maintain the conversation flow. Otherwise, do not reference the previous summary.
+  - Use the **"NAME_LINK"** field from the SQL result for each recommended store to include a clickable link in the response, formatted in Markdown. This link should be used instead of the store's name or address.
+  - In addition to the link, include a brief characteristic or description of each store, such as its specialty or unique feature, based on the SQL result. This description should be concise and highlight the store’s most notable aspect.
+  - If the user asks about nearby parking lots, provide the parking lot's name and **include its address** in the response to make it more helpful. Ensure that the parking lot's address is displayed clearly, along with any other relevant details.
   - The **"summary"** field should contain a brief summary of the interaction for multi-turn chat support, which should include:
     - The user's current question.
     - How many results were found and recommended.

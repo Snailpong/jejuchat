@@ -9,7 +9,7 @@ from prompts import (
 )
 from utils.geo_utils import calculate_distance
 from utils.inference_utils import get_model, inference
-from utils.string_utils import clean_place_name
+from utils.string_utils import clean_place_name, generate_naver_search_link
 
 JEJU_MCT_DATA = pd.read_csv("data/JEJU_PROCESSED.csv", encoding="cp949")
 PLACE = pd.read_csv("data/JEJU_PLACES_MERGED.csv", encoding="cp949")
@@ -157,6 +157,13 @@ class Agent:
         truncate_flag = self.truncate_flag
         result_df = self.result_df
         user_question = self.input_dict["user_question"]
+
+        # Generate Naver search links and add them to result_df
+        result_df["NAME_LINK"] = result_df.apply(
+            lambda row: f"[{row['MCT_NM']}]({generate_naver_search_link(row['MCT_NM'], row['ADDR'])})",
+            axis=1,
+        )
+        result_df = result_df.drop(columns=["MCT_NM", "ADDR"], errors="ignore")
 
         result_json = result_df.to_json(orient="records", force_ascii=False)
 
