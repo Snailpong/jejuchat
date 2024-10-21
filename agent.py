@@ -144,7 +144,7 @@ class Agent:
             truncate_flag = True
 
             if ca_result["shuffle"]:
-                result_df = result_df.sample(10, random_state=42)
+                result_df = result_df.sample(10)
             else:
                 result_df = result_df.head(10)
 
