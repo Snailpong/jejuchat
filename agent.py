@@ -59,9 +59,9 @@ class Agent:
 
     def process_input(self):
         input_dict = self.input_dict
-        use_current_location_time = input_dict["use_current_location_time"]
+        use_current_location = input_dict["use_current_location"]
         user_question = input_dict["user_question"]
-        if input_dict["use_current_location_time"]:
+        if input_dict["use_current_location"]:
             pass
         self.log_debug("질문:\t", user_question)
         self.set_state("질문을 이해하고 있어요.")
@@ -71,7 +71,7 @@ class Agent:
 
         if (
             ca_result["result"] == "ok"
-            and (not use_current_location_time)
+            and (not use_current_location)
             and ca_result["target_place"] == "HERE"
         ):
             self.error_message = "Current location-related information requires permission to access current location or time data. Please enable access."
@@ -208,7 +208,7 @@ class Agent:
     def analyze_context(self, input_dict):
         ca_prompt_question = make_context_analysis_prompt_question(
             user_question=input_dict["user_question"],
-            use_current_location_time=input_dict["use_current_location_time"],
+            use_current_location=input_dict["use_current_location"],
             weekday=input_dict["weekday"],
             hour=input_dict["hour"],
             previous_summary=self.get_previous_summary_str(),

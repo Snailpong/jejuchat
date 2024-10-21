@@ -25,7 +25,7 @@ st.set_page_config(page_title="제주 맛집 추천 챗봇 🍊")
 # Replicate Credentials
 with st.sidebar:
     with st.expander("현재 정보 활용 설정", expanded=True):
-        use_current_location_time = st.checkbox("현재 정보 활용")
+        use_current_location = st.checkbox("현재 위치 정보 활용")
         latitude = st.number_input("위도", format="%.6f", value=33.558277)
         longitude = st.number_input("경도", format="%.6f", value=126.75978)
 
@@ -87,17 +87,15 @@ if prompt := st.chat_input():  # (disabled=not replicate_api):
 if st.session_state.messages[-1]["role"] != "assistant":
     agent.debug = devmode
 
+    weekday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][user_date.weekday()]
     input_dict = {
-        "use_current_location_time": use_current_location_time,
+        "use_current_location": use_current_location,
         "user_question": st.session_state.messages[-1],
-        "weekday": None,
-        "hour": None,
+        "weekday": weekday,
+        "hour": user_time.hour,
     }
-    if use_current_location_time:
-        weekday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][user_date.weekday()]
+    if use_current_location:
         current_info = {
-            "weekday": weekday,
-            "hour": user_time.hour,
             "latitude": latitude,
             "longitude": longitude,
         }
