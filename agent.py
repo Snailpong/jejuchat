@@ -197,13 +197,10 @@ class Agent:
             print(" ".join(map(str, log)))
 
     def get_previous_summary_str(self):
-        # Convert previous_summary list to a string with bullet points
         if len(self.previous_summary) == 0:
             return "NONE"
         else:
-            return "\n".join(
-                [f"- {item}" for item in self.previous_summary[:-1]] + ["- Latest"]
-            )
+            return "\n".join([f"{item}" for item in self.previous_summary])
 
     def analyze_context(self, input_dict):
         ca_prompt_question = make_context_analysis_prompt_question(
