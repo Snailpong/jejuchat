@@ -19,7 +19,7 @@ class Agent:
     def __init__(self, api_key: str):
         self.model = get_model(api_key=api_key)
 
-        self.state = "준비 중이에요."
+        self.state = "READY"
         self.input_dict = None
         self.previous_summary = []
         self.debug = False
@@ -31,28 +31,28 @@ class Agent:
         self.input_dict = input_dict
 
     def __call__(self):
-        if self.state == "챗봇이 질문을 받고 있어요.":
+        if self.state == "GET_QUESTION":
             self.process_input()
             return
 
-        if self.state == "조건에 맞는 식당을 찾을 준비를 하고 있어요.":
+        if self.state == "GEN_SQL":
             self.generate_sql()
             return
 
-        if self.state == "좋아하실 만한 식당을 찾고 있어요.":
+        if self.state == "FILTER_RESTAURANTS":
             self.filter_restaurants()
             return
 
-        if self.state == "추천해드릴 식당을 찾았어요. 거의 다 끝났어요.":
+        if self.state == "GENERATE_OK":
             response = self.generate_ok_answer()
             return response
 
-        if self.state == "문제가 생겨서 해결 방법을 찾고 있어요.":
+        if self.state == "GENERATE_ERROR":
             response = self.generate_error_answer()
             return response
 
         else:
-            self.state = "준비 중이에요."
+            self.state = "READY"
             return (
                 "죄송해요. 처리 중에 문제가 생긴 것 같아요. 잠시 후 다시 시도해주세요."
             )
@@ -75,17 +75,17 @@ class Agent:
             and ca_result["target_place"] == "HERE"
         ):
             self.error_message = "Current location-related information requires permission to access current location or time data. Please enable access."
-            self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+            self.set_state("GENERATE_ERROR")
             return
 
         if ca_result["result"] != "ok":
             self.error_message = ca_result["error_message"]
-            self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+            self.set_state("GENERATE_ERROR")
             return
 
         self.ca_result = ca_result
 
-        self.set_state("조건에 맞는 식당을 찾을 준비를 하고 있어요.")
+        self.set_state("GEN_SQL")
 
     def generate_sql(self):
         ca_result = self.ca_result
@@ -99,11 +99,11 @@ class Agent:
 
         if query_result["result"] != "ok":
             self.error_message = query_result["error_message"]
-            self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+            self.set_state("GENERATE_ERROR")
             return
 
         self.query_result = query_result
-        self.set_state("좋아하실 만한 식당을 찾고 있어요.")
+        self.set_state("FILTER_RESTAURANTS")
 
     def filter_restaurants(self):
         ca_result = self.ca_result
@@ -120,22 +120,21 @@ class Agent:
 
         # If there is a target_place specified, calculate distance from target_place
         if ca_result["target_place"] != "NONE":
-            self.log_debug("근처 식당 필터링을 수행합니다.")
             result, result_df = self.calculate_distance_and_sort(
                 ca_result["target_place"], result_df
             )
 
             if result != "ok":
                 self.error_message = result
-                self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+                self.set_state("GENERATE_ERROR")
                 return
 
         self.log_debug(f"최종적으로 조건에 맞는 식당을 {len(result_df)}개 찾았어요.")
         self.log_debug(f"식당 리스트(최대 10개): {' '.join(result_df['MCT_NM'][:10])}")
 
         if len(result_df) == 0:
-            self.error_message = "해당 조건에 맞는 데이터가 없어요."
-            self.set_state("문제가 생겨서 해결 방법을 찾고 있어요.")
+            self.error_message = "해당 조건에 맞는 식당이 0개로, 추천할 수 없었어요. 조건을 완화해보세요."
+            self.set_state("GENERATE_ERROR")
             return
 
         # Check if there are more than 10 rows
@@ -152,7 +151,7 @@ class Agent:
         self.truncate_flag = truncate_flag
         self.result_df = result_df
 
-        self.set_state("추천해드릴 식당을 찾았어요. 거의 다 끝났어요.")
+        self.set_state("GENERATE_OK")
 
     def generate_ok_answer(self):
         truncate_flag = self.truncate_flag
@@ -172,7 +171,7 @@ class Agent:
         self.log_debug("요약:", parsed_json["summary"])
 
         self.update_previous_summary(parsed_json["summary"])
-        self.state = "준비 중이에요."
+        self.state = "READY"
 
         return parsed_json["answer"]
 
@@ -183,7 +182,7 @@ class Agent:
         final_prompt = make_cannot_generate_sql_prompt(user_question, error_message)
         final_result = inference(final_prompt, self.model)
         self.log_debug("대답:", final_result)
-        self.state = "준비 중이에요."
+        self.state = "READY"
         return final_result["answer"]
 
     def log_debug(self, *log):
@@ -241,11 +240,12 @@ class Agent:
 
         if place_lon is None:
             error_message = (
-                f"Target place '{target_place}' not found in the PLACE table."
+                f"'{target_place}' 장소를 찾지 못했어요. 장소 이름을 다시 확인해주세요."
             )
             self.log_debug(error_message)
             return error_message, None
 
+        self.log_debug("근처 식당 필터링을 수행합니다.", str(place_lat), str(place_lon))
         result_df["PLACE_DISTANCE"] = result_df.apply(
             lambda row: calculate_distance(
                 place_lat, place_lon, row["LATITUDE"], row["LONGITUDE"]
@@ -264,7 +264,7 @@ class Agent:
         place_df = ps.sqldf(place_query, globals())
 
         if place_df.empty:
-            self.log_debug("Exact place not found. Trying to find a similar place.")
+            self.log_debug("문자열이 일치하는 장소가 없어요. 포함 유사열로 시도할게요.")
             place_query = f"SELECT LATITUDE, LONGITUDE FROM PLACE WHERE PLACE_NAME LIKE '%{target_place}%' LIMIT 1;"
             place_df = ps.sqldf(place_query, globals())
 
@@ -289,7 +289,7 @@ class Agent:
 
     def update_previous_summary(self, summary):
         self.previous_summary.append(summary)
-        if len(self.previous_summary) == 5:
+        if len(self.previous_summary) == 2:
             del self.previous_summary[0]
 
     def reset(self):
