@@ -1,5 +1,10 @@
-def get_model(api_key: str):
+def get_model(api_key: str = None):
     import google.generativeai as genai
+
+    if api_key is None:
+        from utils.api_key import google_ai_studio_api_key
+
+        api_key = google_ai_studio_api_key
 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel("gemini-1.5-flash")
