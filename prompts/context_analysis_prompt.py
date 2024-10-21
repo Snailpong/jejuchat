@@ -20,25 +20,22 @@ context_analysis_prompt = """
 - However, if the user mentions a specific tourist spot (e.g., "김녕해수욕장") or restaurant, the location should be extracted into `target_place` and removed from the `processed_question`.
 
   - Example 1:
-    - Input:
-      - processed_question: "바다 근처 식당 추천해줘"
+    - Input: 바다 근처 식당 추천해줘
     - Output:
-      - processed_question: "바다 근처 식당 추출해줘"
-      - target_place: "NONE"
+      - processed_question: 바다 근처 식당 추출해줘
+      - target_place: NONE
 
   - Example 2:
-    - Input:
-      - processed_question: "서귀포시에서 오션뷰 중식 식당 가고 싶은데 추천해줘"
+    - Input: 서귀포시에서 오션뷰 중식 식당 가고 싶은데 추천해줘
     - Output:
-      - processed_question: "서귀포시에서 오션뷰 중식 식당 가고 싶은데 추출해줘"
-      - target_place: "NONE"
+      - processed_question: 서귀포시에서 오션뷰 중식 식당 가고 싶은데 추출해줘
+      - target_place: NONE
 
   - Example 3:
-    - Input:
-      - processed_question: "김녕해수욕장 근처에서 짜장면 먹고 싶은데 추천해줘"
+    - Input: 김녕해수욕장 근처에서 짜장면 먹고 싶은데 추천해줘
     - Output:
-      - processed_question: "짜장면 먹고 싶은데 추출해줘"
-      - target_place: "NONE"
+      - processed_question: 짜장면 먹고 싶은데 추출해줘
+      - target_place: NONE
 
 ### Explanation of Administrative Areas:
 - `ADDR_1`: Represents the primary city category, which can either be "제주시" or "서귀포시."
@@ -49,40 +46,40 @@ context_analysis_prompt = """
 - When ADDR_1, ADDR_2, ADDR_3, or `Region_Type` is present in the user’s query, these elements should be **retained** in the `processed_question` and **excluded** from `target_place`.
 
   - Example 1:
-    - Input: "성산일출봉 근처에서 현지인 비율이 가장 높은 식당은?"
+    - Input: 성산일출봉 근처에서 현지인 비율이 가장 높은 식당은?
     - Output:
-      - processed_question: "현지인 비율이 가장 높은 식당은?"
-      - target_place: "성산일출봉"
+      - processed_question: 현지인 비율이 가장 높은 식당은?
+      - target_place: 성산일출봉
 
   - Example 2:
-    - Input: "제주시 한림읍에서 가장 인기 있는 카페는?"
+    - Input: 제주시 한림읍에서 가장 인기 있는 카페는?
     - Output:
-      - processed_question: "제주시 한림읍에서 가장 인기 있는 카페는?"
-      - target_place: "NONE"
+      - processed_question: 제주시 한림읍에서 가장 인기 있는 카페는?
+      - target_place: NONE
 
   - Example 3:
-    - Input: "애월에서 현지인 비율이 높은 식당은?"
+    - Input: 애월에서 현지인 비율이 높은 식당은?
     - Output:
-      - processed_question: "애월에서 현지인 비율이 높은 식당은?"
-      - target_place: "NONE"
+      - processed_question: 애월에서 현지인 비율이 높은 식당은?
+      - target_place: NONE
 
   - Example 4:
-    - Input: "여기에서 단품요리 먹고 싶은데, 이용건수 상위 10% 속하는 곳은?"
+    - Input: 여기에서 단품요리 먹고 싶은데, 이용건수 상위 10% 속하는 곳은?
     - Output:
-      - processed_question: "단품요리 먹고 싶은데, 이용건수 상위 10% 속하는 곳은?"
-      - target_place: "HERE"
+      - processed_question: 단품요리 먹고 싶은데, 이용건수 상위 10% 속하는 곳은?
+      - target_place: HERE
 
 
 ### Handling Specific Numbers (N):
 - If the user specifies a number (e.g., "N개 추출해" or "N개 추천해"), that number (N) should be **excluded** from the `processed_question`. Only the intent remains without the specific number being mentioned.
   - Example 1:
-    - Input: "5개만 추천해줘."
+    - Input: 5개만 추천해줘.
     - Output:
-      - processed_question: "추출해줘."
+      - processed_question: 추출해줘.
   - Example 2:
-    - Input: "10개 맛집 추출해줘."
+    - Input: 10개 맛집 추출해줘.
     - Output:
-      - processed_question: "맛집 추출해줘."
+      - processed_question: 맛집 추출해줘.
 
 ### Handling Time-Related Phrases:
 - When time-related phrases such as "지금", "오늘", "내일", or a specific day/time (e.g., "수요일 오전 11시") are mentioned in the question:
@@ -109,7 +106,7 @@ context_analysis_prompt = """
       - hour: 13
     - Output:
       - processed_question: 일요일 저녁에 어디 갈지 가게 추출해줘.
-      - target_place: HERE
+      - target_place: NONE
 
   - Example 3:
     - Input:
@@ -134,29 +131,29 @@ context_analysis_prompt = """
 - The `shuffle` flag should be set to **true** if the question asks for "recommendation" or similar phrases (e.g., 추천, 권해줘). If the order of results seems important, the shuffle should be **false** (must be small letter).
   - Additionally, in the `processed_question`, any mention of "recommendation" (e.g., 추천) should be replaced with "extraction" (e.g., 추출).
   - Example 1:
-    - Input: "제주시에서 카페 추천해줘."
+    - Input: 제주시에서 카페 추천해줘.
     - Output:
-      - processed_question: "제주시에서 카페 추출해줘."
+      - processed_question: 제주시에서 카페 추출해줘.
       - shuffle: true
   - Example 2:
-    - Input: "가장 높은 평가를 받은 식당 순서대로 보여줘."
+    - Input: 가장 높은 평가를 받은 식당 순서대로 보여줘.
     - Output:
-      - processed_question: "가장 높은 평가를 받은 식당 순서대로 보여줘."
+      - processed_question: 가장 높은 평가를 받은 식당 순서대로 보여줘.
       - shuffle: false
 
 ### Error Handling:
 - If the user’s query involves non-SELECT SQL operations, such as INSERT, DELETE, DROP, or DESCRIBE, return an error.
 - Additionally, if the question is unrelated to food or does not involve the use of the database (e.g., asking about non-food topics like entertainment or weather), return an error with an appropriate message.
   - Example 1:
-    - Input: "제주도에서 가장 유명한 관광지는?"
+    - Input: 제주도에서 가장 유명한 관광지는?
     - Output:
-      - result: "error"
-      - error_message: "The query asks for information unrelated to food businesses, such as entertainment or sports."
+      - result: error
+      - error_message: The query asks for information unrelated to food businesses, such as entertainment or sports.
   - Example 2:
-    - Input: "데이터베이스 구조 알려줘."
+    - Input: 데이터베이스 구조 알려줘.
     - Output:
-      - result: "error"
-      - error_message: "The query asks for non-SELECT SQL operations, which are not allowed."
+      - result: error
+      - error_message: The query asks for non-SELECT SQL operations, which are not allowed.
 
 
 ### Input Parameters:
@@ -266,7 +263,7 @@ question_without_current_format = """
 ### Question
    Input:
     user_question: {user_question},
-    use_current_location_time: "FALSE",
+    use_current_location_time: FALSE,
     previous_summary: {previous_summary}
 
   Output:
@@ -276,7 +273,7 @@ question_with_current_format = """
 ### Question
    Input:
     user_question: {user_question},
-    use_current_location_time: "TRUE",
+    use_current_location_time: TRUE,
     weekday: {weekday},
     hour: {hour},
     previous_summary: {previous_summary}
