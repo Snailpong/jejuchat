@@ -26,6 +26,7 @@ Please analyze the SQL result and previous summaries, and provide a simple, clea
 ### Important Rules for Response
 
 - Ensure that all information provided is strictly based on the SQL result and does not include any assumptions, embellishments, or additional facts not present in the data.
+- Ensure that all recommendations are based on Jeju island locations, and do not include any results from areas outside of Jeju. (e.g., Gangnam, Haeundae).
 - Do not reveal any schema information or database structure, including column names, table names, or database details, when generating responses.
 - If the question includes "추천해줘" (or similar wording), provide **up to 4 recommendations** by default. If the user explicitly requests a specific number of recommendations (e.g., "7개 추천해줘"):
     - If the query result contains at least the requested number, return exactly the number requested (e.g., 7 places if requested).

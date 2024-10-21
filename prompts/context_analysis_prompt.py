@@ -85,7 +85,7 @@ context_analysis_prompt = """
       - processed_question: "맛집 추출해줘."
 
 ### Handling Time-Related Phrases:
-- When time-related phrases such as "지금", "오늘", "내일", or a specific day/time (e.g., "수요일 11시") are mentioned in the question:
+- When time-related phrases such as "지금", "오늘", "내일", or a specific day/time (e.g., "수요일 오전 11시") are mentioned in the question:
   - If `use_current_location_time` is TRUE, the time and day should be **retained** in the `processed_question`. Both `weekday` and `hour` should be incorporated as specific time mentions, and any time-of-day terms like "아침", "점심", "오후", "저녁", "새벽" should be kept as they are.
   - If `use_current_location_time` is FALSE and the question mentions time-related information, return an error indicating that permission for accessing time/location data is required.
 - When specific months, years, or historical dates (e.g., "2023년 5월") are mentioned in the question:
@@ -98,7 +98,7 @@ context_analysis_prompt = """
       - weekday: Wed
       - hour: 11
     - Output:
-      - processed_question: 수요일 점심에 갈 점심 먹을 곳 추출해줘.
+      - processed_question: 수요일 점심 먹을 곳 추출해줘.
       - target_place: HERE
 
   - Example 2:
@@ -112,6 +112,16 @@ context_analysis_prompt = """
       - target_place: HERE
 
   - Example 3:
+    - Input:
+      - user_question: 해녀의태왁 근처에 지금 열려 있는 식당 추천해줘.
+      - use_current_location_time: TRUE
+      - weekday: Thu
+      - hour: 16
+    - Output:
+      - processed_question: 목요일 오후 4시에 열려 있는 식당 추출해줘.
+      - target_place: 해녀의태왁
+
+  - Example 4:
     - Input:
       - user_question: 오늘 점심 어디서 먹을지 추천해줘.
       - use_current_location_time: FALSE

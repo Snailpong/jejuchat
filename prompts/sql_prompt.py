@@ -111,6 +111,7 @@ Error Messages:
   - HR_14_17_UE_CNT_RAT: 2:00 PM - 5:59 PM. (오후)
   - HR_18_22_UE_CNT_RAT: 6:00 PM - 10:59 PM. (저녁, 밤)
   - HR_23_4_UE_CNT_RAT: 11:00 PM - 4:59 AM. (새벽, 한밤중)
+  - When referencing time slots, only use the exact defined column names as listed above. For example, if you need to check between 10:00 AM and 11:00 AM, you should query the HR_5_11_UE_CNT_RAT column, since it encompasses that period.
 
 - Gender-Based Columns:
   - RC_M12_MAL_CUS_CNT_RAT: Percentage of male customers.
