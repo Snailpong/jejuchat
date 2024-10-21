@@ -90,7 +90,7 @@ if st.session_state.messages[-1]["role"] != "assistant":
     weekday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][user_date.weekday()]
     input_dict = {
         "use_current_location": use_current_location,
-        "user_question": st.session_state.messages[-1],
+        "user_question": st.session_state.messages[-1]["content"],
         "weekday": weekday,
         "hour": user_time.hour,
     }

@@ -67,6 +67,11 @@ class Agent:
         self.log_debug("질문:\t", user_question)
         self.set_state("질문을 이해하고 있어요.")
 
+        if len(user_question) >= 150:
+            self.error_message = "질문이 너무 길어서 이해하기 힘들어요."
+            self.set_state("GENERATE_ERROR")
+            return
+
         ca_result = self.analyze_context(input_dict)
         self.log_debug(ca_result)
 
