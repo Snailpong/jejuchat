@@ -2,12 +2,24 @@ def parse_json_from_str(json_str):
     import json
     import re
 
-    # Extract the content between curly braces
-    match = re.findall(r"\{.*?\}", json_str, re.DOTALL)[0]
+    def clean_json_trailing_commas(json_str):
+        # This regex looks for trailing commas before the closing brace or bracket and removes them
+        return re.sub(r",\s*(?=[}\]])", "", json_str)
 
-    # Parse the JSON content
-    parsed_json = json.loads(match)
-    return parsed_json
+    try:
+        # Extract the content between curly braces
+        match = re.findall(r"\{.*?\}", json_str, re.DOTALL)[0]
+
+        # Clean trailing commas in the matched JSON string
+        cleaned_json_str = clean_json_trailing_commas(match)
+
+        # Parse the cleaned JSON content
+        parsed_json = json.loads(cleaned_json_str)
+        return parsed_json
+
+    except (json.JSONDecodeError, IndexError) as e:
+        print(f"Failed to parse JSON: {e}")
+        return None
 
 
 def count_prompt_token(model, prompt):
