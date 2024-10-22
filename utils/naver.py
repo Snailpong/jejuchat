@@ -2,6 +2,7 @@ import urllib.parse
 
 import requests
 from bs4 import BeautifulSoup
+from fuzzywuzzy import fuzz
 
 
 def naver_search(query: str) -> str:
@@ -12,17 +13,38 @@ def naver_search(query: str) -> str:
     return response.text
 
 
-def extract_href(html: str, selector: str) -> str:
+def extract_name_href(html: str, selector: str) -> tuple:
     soup = BeautifulSoup(html, "html.parser")
     element = soup.select_one(selector)
-    return element["href"] if element and element.has_attr("href") else ""
+    if element and element.has_attr("href"):
+        return element.text.strip(), element["href"]
+    return "", ""
+
+
+def similarity(a: str, b: str) -> float:
+    return fuzz.ratio(a, b)
 
 
 def extract_place_url(query: str) -> str:
     result = naver_search(query)
-    parsed = extract_href(html=result, selector="#_title > a")
-    another = extract_href(
+    parsed = extract_name_href(html=result, selector="#_title > a")
+    another = extract_name_href(
         html=result,
         selector="#loc-main-section-root > div > div.hx3zy > div:nth-child(2) > ul > li > div > div.ouxiq > a:nth-child(1)",
     )
-    return parsed if parsed else another
+    other = extract_name_href(
+        html=result,
+        selector="#loc-main-section-root > div > div.hx3zy > div:nth-child(2) > ul > li:nth-child(2) > div > div.ouxiq > a:nth-child(1)",
+    )
+
+    # Compare similarity between 'another' and 'other' with the query
+    similarity_another = similarity(another[0], query)
+    similarity_other = similarity(other[0], query)
+
+    if similarity_another > similarity_other:
+        chosen = another
+    else:
+        chosen = other
+
+    # Return the href of the more similar result
+    return parsed[1] if parsed[1] else chosen[1]
