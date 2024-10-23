@@ -108,6 +108,13 @@ class Agent:
             self.set_state("GENERATE_ERROR")
             return
 
+        if not query_result["query"].upper().startswith("SELECT"):
+            self.error_message = (
+                "The query asks for non-SELECT SQL operations, which are not allowed."
+            )
+            self.set_state("GENERATE_ERROR")
+            return
+
         self.query_result = query_result
         self.set_state("FILTER_RESTAURANTS")
 
