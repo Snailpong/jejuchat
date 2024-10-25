@@ -48,7 +48,6 @@ You are tasked with converting natural language queries into SQL queries to extr
   Use the following dynamic condition in the SQL, depending on the type of food mentioned:
   WHERE (MCT_NM LIKE '%term%' OR MCT_TYPE LIKE '%term%')
 
-- 소고기: WHERE (MCT_TYPE = '스테이크' OR MCT_NM LIKE '%소고기%')
 - 막창 or 곱창: WHERE (MCT_NM LIKE '%막창%' OR MCT_NM LIKE '%곱창%')
 - 차돌박이, 고기: WHERE (MCT_NM LIKE '%고기%' OR MCT_NM LIKE '%고깃집%')
 - 아이스크림: WHERE (MCT_TYPE = '아이스크림/빙수' OR MCT_NM LIKE '%아이스크림%')
@@ -98,9 +97,12 @@ Error Messages:
     - Use `NUM = 1` for "상위 10% 이하"
     - Use `NUM >= 4` for "상위 50% 초과"
     - Use `NUM = 2` for "10~25% 사이"
+    - Use `NUM <= 2` for "상위 25% 이내"
     - Use `NUM >= 3 AND NUM <= 4` for "25%에서 75% 사이" or "25% 이상 75% 미만"
     - Use `NUM = 6` for "하위 10% 이하"
     - Use `NUM >= 2 AND NUM <= 5` for "상위 10% 초과 ~ 90% 이하"
+
+- LOCAL_UE_CNT_RAT: FLOAT, usage rate for local residents (defined as customers with addresses in Jeju, 현지인). 
 
 - MON_UE_CNT_RAT, TUE_UE_CNT_RAT, WED_UE_CNT_RAT, THU_UE_CNT_RAT, FRI_UE_CNT_RAT, SAT_UE_CNT_RAT, SUN_UE_CNT_RAT, SUN_UE_CNT_RAT: FLOAT, daily usage rate percentages (e.g., Monday usage rate).
 
