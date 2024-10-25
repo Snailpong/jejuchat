@@ -22,10 +22,15 @@ def extract_name_href(html: str, selector: str) -> tuple:
 
 
 def similarity(a: str, b: str) -> float:
+    a = a.replace(" ", "")
+    b = b.replace(" ", "")
     return fuzz.ratio(a, b)
 
 
 def extract_place_url(query: str) -> str:
+    address, name = query.split("/")
+    query = address + " " + name
+
     result = naver_search(query)
     parsed = extract_name_href(html=result, selector="#_title > a")
     another = extract_name_href(
@@ -38,9 +43,13 @@ def extract_place_url(query: str) -> str:
     )
 
     # Compare similarity between 'another' and 'other' with the query
-    similarity_another = similarity(another[0], query)
-    similarity_other = similarity(other[0], query)
+    similarity_another = similarity(another[0], name)
+    similarity_other = similarity(other[0], name)
 
+    if similarity_another <= 20 and similarity_other <= 20:
+        return (
+            f"https://m.search.naver.com/search.naver?query={urllib.parse.quote(query)}"
+        )
     if similarity_another > similarity_other:
         chosen = another
     else:
