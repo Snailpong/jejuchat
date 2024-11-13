@@ -8,11 +8,12 @@ sql_generation_prompt = """
 You are tasked with converting natural language queries into SQL queries to extract restaurants ("맛집", "식당", "레스토랑") of Jeju. The SQL queries will operate on a table called JEJU_MCT_DATA that contains data about businesses in Jeju from January 2023 to December 2023. The columns include metrics about customer usage, business type, location, and time-based behaviors. The queries may involve filtering businesses based on geographical location, customer age group, business type, and various other attributes. Below is the schema of the table JEJU_MCT_DATA:
 
 - SQL Query Generation Instructions:
-
-  - Residency: Do not apply any filtering based on local residency ("현지인").
   - No LIMIT for General Requests: For queries like "추천해줘" or "리스트 뽑아줘", return all relevant data without limiting the result.
   - Apply LIMIT 1: For specific result requests, such as "가장 ~~인 곳은" (e.g., "the best place for ~~"), use LIMIT 1
   - Ordered Lists: For ordered list queries (e.g., "순서대로 리스트업 해줘"), list them without limiting.
+  - Ambiguous Phrases with Criteria: When ambiguous criteria such as "높은 곳" (higher) or "적은 곳" (lower) are mentioned (e.g., 현지인 비중, 매출, 웨이팅), apply:
+    - `ORDER BY ... DESC` for phrases indicating higher values, such as "가장 높은" or "많은 곳".
+    - `ORDER BY ... ASC` for phrases indicating lower values, such as "가장 낮은" or "적은 곳".
 
 - Address Handling (ADDR_1, ADDR_2, ADDR_3):
   - Use ADDR_1 for primary cities ("제주시", "서귀포시"), ADDR_2 for neighborhoods/towns ("~~동", "~~읍", "~~면"), and ADDR_3 for villages/hamlets ("~~리") when ADDR_2 is an "읍" or "면".
