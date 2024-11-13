@@ -1,12 +1,9 @@
 import pandas as pd
 import pandasql as ps
 
-from prompts import (
-    make_cannot_generate_sql_prompt,
-    make_context_analysis_prompt_question,
-    make_single_question_prompt,
-    make_single_result_prompt,
-)
+from prompts import (make_cannot_generate_sql_prompt,
+                     make_context_analysis_prompt_question,
+                     make_single_question_prompt, make_single_result_prompt)
 from utils.geo_utils import calculate_distance
 from utils.inference_utils import get_model, inference
 from utils.naver import extract_place_url
@@ -143,7 +140,10 @@ class Agent:
                 return
 
         self.log_debug(f"최종적으로 조건에 맞는 식당을 {len(result_df)}개 찾았어요.")
-        self.log_debug(f"식당 리스트(최대 10개): {' '.join(result_df['MCT_NM'][:10])}")
+        try:
+            self.log_debug(f"식당 리스트(최대 10개): {' '.join(result_df['MCT_NM'][:10])}")
+        except:
+            pass
 
         if len(result_df) == 0:
             self.error_message = "해당 조건에 맞는 식당이 0개로, 추천할 수 없었어요. 조건을 완화해보세요."
@@ -171,15 +171,18 @@ class Agent:
         result_df = self.result_df
         user_question = self.input_dict["user_question"]
 
-        result_df["NAME_LINK"] = (
-            "["
-            + result_df["MCT_NM"]
-            + "]("
-            + (result_df["ADDR"] + " " + result_df["MCT_NM"]).map(extract_place_url)
-            + ")"
-        )
+        try:
+            result_df["NAME_LINK"] = (
+                "["
+                + result_df["MCT_NM"]
+                + "]("
+                + (result_df["ADDR"] + " " + result_df["MCT_NM"]).map(extract_place_url)
+                + ")"
+            )
 
-        result_df = result_df.drop(columns=["MCT_NM", "ADDR"], errors="ignore")
+            result_df = result_df.drop(columns=["MCT_NM", "ADDR"], errors="ignore")
+        except:
+            pass
 
         result_json = result_df.to_json(orient="records", force_ascii=False)
 
