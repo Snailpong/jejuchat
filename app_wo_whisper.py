@@ -1,13 +1,8 @@
 import os
 import random
-import tempfile
 from datetime import datetime
 
 import streamlit as st
-import whisper
-from audio_recorder_streamlit import audio_recorder
-from playsound3 import playsound
-from streamlit_float import float_css_helper
 
 from agent import Agent
 from questions.example_question import app_question_list
@@ -39,27 +34,11 @@ def onboarding_chat():
                 st.session_state.messages.append({"role": "user", "content": question})
 
 
-# Function to capture and handle audio transcription
-def transcribe_audio(audio_bytes):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as audio_file:
-        audio_file.write(audio_bytes)
-        audio_path = audio_file.name
-    transcription = st.session_state.whisper_model.transcribe(
-        audio_path, language="korean", fp16=False
-    )
-    os.remove(audio_path)
-    return transcription["text"]
-
-
 # Clear chat history button
 def clear_chat_history():
     agent.reset()
     st.session_state.messages = []
 
-
-# Initialize Whisper model for audio transcription
-if "whisper_model" not in st.session_state:
-    st.session_state.whisper_model = whisper.load_model("small")
 
 if "agent" not in st.session_state:
     if api_key := os.getenv("GOOGLE_API_KEY"):
@@ -107,24 +86,9 @@ for message in st.session_state.messages:
         st.write(message["content"])
 
 # Main input area with text and audio input options
-chat_input_container = st.container()
-if agent.state == "READY":
-    with chat_input_container:
-        cols = st.columns([0.9, 0.1])
-        with cols[0]:
-            if prompt := st.chat_input(placeholder="내용을 입력해주세요"):
-                agent.set_state("CHAT")
-                add_user_message(prompt)
-
-        with cols[1]:
-            audio_bytes = audio_recorder(text="", icon_size="2x")
-
-    if audio_bytes and audio_bytes != st.session_state.last_audio_bytes:
-        agent.set_state("WHISPER")
-        playsound("audio/beep.mp3")
-        transcribed_text = transcribe_audio(audio_bytes)
-        st.session_state.last_audio_bytes = audio_bytes
-        add_user_message(transcribed_text)
+if prompt := st.chat_input(placeholder="내용을 입력해주세요"):
+    agent.set_state("CHAT")
+    add_user_message(prompt)
 
 # Process the last user message if it’s new
 if (
@@ -160,12 +124,3 @@ if (
         st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
         st.rerun()
-
-chat_input_css = float_css_helper(
-    bottom="1rem",
-    display="flex",
-    justify_content="center",
-    margin="0 auto",
-    max_width="800px",
-)
-chat_input_container.float(chat_input_css)
