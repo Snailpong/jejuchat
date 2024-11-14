@@ -1,13 +1,20 @@
 import pandas as pd
 import pandasql as ps
 
-from prompts import (make_cannot_generate_sql_prompt,
-                     make_context_analysis_prompt_question,
-                     make_single_question_prompt, make_single_result_prompt)
+from prompts import (
+    make_cannot_generate_sql_prompt,
+    make_context_analysis_prompt_question,
+    make_single_question_prompt,
+    make_single_result_prompt,
+)
 from utils.geo_utils import calculate_distance
 from utils.inference_utils import get_model, inference
 from utils.naver import extract_place_url
-from utils.string_utils import clean_place_name
+from utils.string_utils import (
+    clean_place_name,
+    extract_order_column,
+    extract_place_count,
+)
 
 JEJU_MCT_DATA = pd.read_csv("data/JEJU_PROCESSED.csv", encoding="cp949")
 PLACE = pd.read_csv("data/JEJU_PLACES_MERGED.csv", encoding="cp949")
@@ -86,6 +93,7 @@ class Agent:
             self.set_state("GENERATE_ERROR")
             return
 
+        ca_result["place_count"] = min(extract_place_count(user_question), 10)
         self.ca_result = ca_result
 
         self.set_state("GEN_SQL")
@@ -153,18 +161,58 @@ class Agent:
         # Check if there are more than 10 rows
         truncate_flag = False
 
-        if len(result_df) > 10:
+        if len(result_df) > 4 and ca_result["place_count"] is not None:
+            self.log_debug("결과가 4개 이상이라 샘플링을 수행합니다.")
             truncate_flag = True
-
-            if ca_result["shuffle"]:
-                result_df = result_df.sample(10)
-            else:
-                result_df = result_df.head(10)
+            result_df = self.sample_result(result_df)
+        else:
+            self.log_debug("결과가 4개 이하라 샘플링을 수행하지 않습니다.")
 
         self.truncate_flag = truncate_flag
         self.result_df = result_df
 
         self.set_state("GENERATE_OK")
+
+    def sample_result(self, result_df):
+        ca_result = self.ca_result
+        query_result = self.query_result
+
+        place_count = (
+            ca_result["place_count"] if ca_result["place_count"] is not None else 4
+        )
+
+        if not ca_result["shuffle"]:
+            self.log_debug(f"최상위 {place_count}개를 샘플링합니다.")
+            result_df = result_df.head(place_count)
+
+        elif "ASC" not in query_result["query"] and "DESC" not in query_result["query"]:
+            self.log_debug(f"일반 셔플링을 수행해서 {place_count}개 샘플링합니다.")
+            result_df = result_df.sample(place_count)
+
+        else:
+            order_column = extract_order_column(query_result["query"])
+            self.log_debug(f"{order_column} 기준으로 샘플링을 수행합니다.")
+
+            if pd.api.types.is_integer_dtype(result_df[order_column]):
+                # If integer type, filter rows with the max value of that column
+                max_value_rows = result_df[
+                    result_df[order_column] == result_df[order_column].max()
+                ]
+                self.log_debug("INT max_value_rows", len(max_value_rows))
+                result_df = max_value_rows.sample(min(place_count, len(max_value_rows)))
+
+            elif pd.api.types.is_float_dtype(result_df[order_column]):
+                # If float type, filter top 10% or 10 rows, then sample from these
+                top_10_percent_index = int(max(len(result_df) * 0.1, 10))
+                self.log_debug("FLOAT top_10_percent_index", top_10_percent_index)
+                top_10_percent_rows = result_df.nlargest(
+                    top_10_percent_index, order_column
+                )
+                result_df = top_10_percent_rows.sample(
+                    min(place_count, len(top_10_percent_rows))
+                )
+
+        return result_df
 
     def generate_ok_answer(self):
         truncate_flag = self.truncate_flag

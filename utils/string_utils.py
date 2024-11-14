@@ -40,6 +40,23 @@ def clean_place_name(place_name):
     return place_name
 
 
+def extract_order_column(query):
+    """Extracts the column on which the result is ordered based on 'ASC' or 'DESC'."""
+    import re
+
+    match = re.search(r"ORDER BY (\w+) (ASC|DESC)", query)
+    return match.group(1) if match else None
+
+
+def extract_place_count(text):
+    import re
+
+    match = re.search(r"(\d+)\s*(?:곳|군데)", text)
+    if match:
+        return int(match.group(1))
+    return None
+
+
 def generate_naver_search_link(store_name, address):
     search_query = f"{address} {store_name}"
     search_query_encoded = search_query.replace(" ", "+")  # Replace spaces with "+"
