@@ -137,7 +137,7 @@ class Agent:
             self.log_debug(f"SQL 쿼리 결과가 {len_result_df} 개 조회되었어요")
 
         # If there is a target_place specified, calculate distance from target_place
-        if ca_result["target_place"] != "NONE":
+        if ca_result["target_place"] != "NONE" and not result_df.empty:
             result, result_df = self.calculate_distance_and_sort(
                 ca_result["target_place"], result_df
             )
@@ -148,17 +148,16 @@ class Agent:
                 return
 
         self.log_debug(f"최종적으로 조건에 맞는 식당을 {len(result_df)}개 찾았어요.")
-        try:
-            self.log_debug(f"식당 리스트(최대 10개): {' '.join(result_df['MCT_NM'][:10])}")
-        except:
-            pass
+        if "MCT_NM" in result_df.columns:
+            self.log_debug(
+                f"식당 리스트(최대 10개): {' '.join(result_df['MCT_NM'][:10])}"
+            )
 
         if len(result_df) == 0:
             self.error_message = "해당 조건에 맞는 식당이 0개로, 추천할 수 없었어요. 조건을 완화해보세요."
             self.set_state("GENERATE_ERROR")
             return
 
-        # Check if there are more than 10 rows
         truncate_flag = False
 
         if len(result_df) > 4 and ca_result["place_count"] is not None:
@@ -219,18 +218,20 @@ class Agent:
         result_df = self.result_df
         user_question = self.input_dict["user_question"]
 
-        try:
-            result_df["NAME_LINK"] = (
-                "["
-                + result_df["MCT_NM"]
-                + "]("
-                + (result_df["ADDR"] + " " + result_df["MCT_NM"]).map(extract_place_url)
-                + ")"
-            )
-
+        if "MCT_NM" in result_df.columns:
+            try:
+                result_df["NAME_LINK"] = (
+                    "["
+                    + result_df["MCT_NM"]
+                    + "]("
+                    + (result_df["ADDR"] + "/" + result_df["MCT_NM"]).map(
+                        extract_place_url
+                    )
+                    + ")"
+                )
+            except Exception as _:
+                result_df["NAME_LINK"] = result_df["MCT_NM"]
             result_df = result_df.drop(columns=["MCT_NM", "ADDR"], errors="ignore")
-        except:
-            pass
 
         result_json = result_df.to_json(orient="records", force_ascii=False)
 
