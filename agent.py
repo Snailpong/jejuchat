@@ -93,7 +93,7 @@ class Agent:
             self.set_state("GENERATE_ERROR")
             return
 
-        ca_result["place_count"] = min(extract_place_count(user_question), 10)
+        ca_result["place_count"] = extract_place_count(user_question)
         self.ca_result = ca_result
 
         self.set_state("GEN_SQL")
@@ -160,25 +160,27 @@ class Agent:
 
         truncate_flag = False
 
-        if len(result_df) > 4 and ca_result["place_count"] is not None:
-            self.log_debug("결과가 4개 이상이라 샘플링을 수행합니다.")
+        place_count = (
+            min(ca_result["place_count"], 10)
+            if ca_result["place_count"] is not None
+            else 4
+        )
+
+        if len(result_df) > place_count:
+            self.log_debug(f"결과가 {place_count}개 이상이라 샘플링을 수행합니다.")
             truncate_flag = True
-            result_df = self.sample_result(result_df)
+            result_df = self.sample_result(result_df, place_count)
         else:
-            self.log_debug("결과가 4개 이하라 샘플링을 수행하지 않습니다.")
+            self.log_debug(f"결과가 {place_count}개 이하라 샘플링을 수행하지 않습니다.")
 
         self.truncate_flag = truncate_flag
         self.result_df = result_df
 
         self.set_state("GENERATE_OK")
 
-    def sample_result(self, result_df):
+    def sample_result(self, result_df, place_count):
         ca_result = self.ca_result
         query_result = self.query_result
-
-        place_count = (
-            ca_result["place_count"] if ca_result["place_count"] is not None else 4
-        )
 
         if not ca_result["shuffle"]:
             self.log_debug(f"최상위 {place_count}개를 샘플링합니다.")
